@@ -1,0 +1,200 @@
+/* Navegación Móvil Inferior */
+.nav-bottom {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 65px;
+    background: rgba(15, 23, 42, 0.8);
+    /* Reforzado */
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-top: 1px solid var(--border);
+    z-index: 1000;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 0.5rem;
+}
+
+.light-mode .nav-bottom {
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.nav-bottom-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: var(--text-muted);
+    gap: 4px;
+    flex: 1;
+    transition: all 0.3s ease;
+}
+
+.nav-bottom-item span {
+    font-size: 1.2rem;
+}
+
+.nav-bottom-item small {
+    font-size: 0.65rem;
+    font-weight: 500;
+}
+
+.nav-bottom-item.active {
+    color: var(--primary);
+}
+
+.publish-btn-mobile {
+    font-size: 1.8rem;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(6, 182, 212, 0.4);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.publish-btn-mobile:active {
+    transform: scale(0.85);
+}
+
+.mobile-filter-tags {
+    display: flex;
+    gap: 0.6rem;
+    overflow-x: auto;
+    padding: 0.2rem 0;
+    scrollbar-width: none;
+}
+
+.mobile-filter-tags::-webkit-scrollbar {
+    display: none;
+}
+
+.filter-tag {
+    white-space: nowrap;
+    padding: 0.5rem 1rem;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    transition: all 0.2s;
+}
+
+.filter-tag.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+}
+
+@media (max-width: 1024px) {
+    .nav-top {
+        padding: 0 1rem;
+        height: 60px;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center;
+        gap: 0.5rem;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        border-bottom: 1px solid var(--border);
+        z-index: 1000;
+    }
+
+    .light-mode .nav-top {
+        background: rgba(255, 255, 255, 0.7);
+    }
+
+    .nav-top .logo {
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+
+    .nav-top .search-container {
+        flex: 1;
+        max-width: 400px !important;
+        margin: 0 1rem;
+        display: flex;
+    }
+
+    /* Ocultar selector de filtros en tablets/móvil para limpiar UI */
+    .nav-top .search-filter-select {
+        display: none !important;
+    }
+
+    .nav-top .nav-icons {
+        display: flex !important;
+        align-items: center;
+        flex-shrink: 0;
+        gap: 0;
+    }
+
+    .nav-top .profile-dropdown .avatar {
+        width: 38px;
+        height: 38px;
+        border: 2px solid var(--primary);
+    }
+
+    .nav-bottom {
+        display: flex !important;
+        position: fixed;
+        bottom: 0 !important;
+        top: auto !important;
+        height: 65px;
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        border-top: 1px solid var(--border);
+        z-index: 1000;
+    }
+
+    .light-mode .nav-bottom {
+        background: rgba(255, 255, 255, 0.8);
+    }
+
+    .dropdown-content {
+        position: fixed;
+        top: 65px;
+        right: 1rem;
+        left: auto;
+        width: 220px;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        background: var(--dropdown-bg);
+    }
+}
+
+/* Ajustes específicos para pantallas muy pequeñas (móvil real) */
+@media (max-width: 600px) {
+    .nav-top .logo {
+        font-size: 1.1rem;
+    }
+
+    .nav-top .search-container {
+        max-width: 160px !important;
+        margin: 0 0.4rem;
+    }
+
+    .nav-top .profile-dropdown .avatar {
+        width: 34px;
+        height: 34px;
+    }
+
+    .dropdown-content {
+        right: 0.8rem;
+        left: 0.8rem;
+        width: auto;
+    }
+}

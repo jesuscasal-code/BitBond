@@ -1,0 +1,96 @@
+/* Barra de Navegación */
+.nav-top {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2rem;
+    background: rgba(15, 23, 42, 0.7);
+    /* Más opaco para legibilidad */
+    border-bottom: 1px solid var(--border);
+}
+
+.light-mode .nav-top {
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    background: linear-gradient(45deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.search-bar {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.5rem 1rem;
+    width: 300px;
+    color: var(--text-main);
+}
+
+.nav-icons {
+    display: flex;
+    gap: 1.5rem;
+}
+
+/* Desplegable de Perfil */
+.profile-dropdown {
+    position: relative;
+    cursor: pointer;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 1rem;
+    min-width: 170px;
+    background: var(--dropdown-bg);
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    box-shadow: var(--shadow);
+    padding: 0.6rem;
+    z-index: 1100;
+    animation: slideUp 0.2s ease;
+}
+
+.dropdown-content.show {
+    display: block;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.7rem 1.2rem;
+    color: var(--text-main);
+    text-decoration: none;
+    font-size: 0.9rem;
+    border-radius: 10px;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.dropdown-item:hover {
+    background: var(--glass);
+    color: var(--primary);
+}
+
+.dropdown-item.logout {
+    color: #ff4444;
+}
+
+.dropdown-item.logout:hover {
+    background: rgba(255, 68, 68, 0.1);
+    color: #ff6666;
+}

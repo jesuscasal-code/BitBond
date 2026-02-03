@@ -1,0 +1,79 @@
+/* Muro de Publicaciones */
+.feed {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.post-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: #444;
+    object-fit: cover;
+}
+
+.post-image {
+    width: 100%;
+    border-radius: 12px;
+    margin: 1rem 0;
+}
+
+.post-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.action-btn.active {
+    color: var(--accent);
+}
+
+/* Sección de Comentarios */
+.comment-section {
+    margin-top: 1rem;
+    animation: fadeIn 0.3s ease;
+}
+
+.comment {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.6rem 1rem;
+    border-radius: 12px;
+    margin-bottom: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.comment-input {
+    flex-grow: 1;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.4rem 1rem;
+    color: white;
+    font-size: 0.85rem;
+}
+
+.comment-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}

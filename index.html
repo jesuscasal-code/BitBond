@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BitBond - Conecta con tu equipo tech</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/diseño.css">
+    <link rel="stylesheet" href="css/componentes/navegacion.css">
+    <link rel="stylesheet" href="css/componentes/muro.css">
+    <link rel="stylesheet" href="css/componentes/autenticacion.css">
+    <link rel="stylesheet" href="css/componentes/modales.css">
+    <link rel="stylesheet" href="css/componentes/amigos.css">
+    <link rel="stylesheet" href="css/componentes/perfil.css">
+    <link rel="stylesheet" href="css/componentes/perfil_detalle.css">
+    <link rel="stylesheet" href="css/componentes/movil.css">
+    <link rel="stylesheet" href="css/componentes/historias.css">
+    <link rel="stylesheet" href="css/componentes/interacciones.css">
+    <!-- Cropper.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+</head>
+
+
+<body>
+    <!-- App Principal -->
+    <div id="mainApp" style="display: none;">
+        <nav class="nav-top glass glass-text">
+            <div class="logo" onclick="cerrarPerfilUsuario()" style="cursor: pointer;">BitBond</div>
+            <div class="search-container" id="searchContainer">
+                <div style="position: relative; display: flex; align-items: center; gap: 0.5rem; width: 100%;">
+                    <input type="text" id="globalSearch" class="search-bar" style="width: 100%; transition: all 0.3s;"
+                        placeholder="Buscar..." oninput="ejecutarBusqueda(this.value)" onfocus="showSearchFilters()"
+                        onblur="hideSearchFilters()">
+
+                    <select id="searchFilterJob" class="search-filter-select"
+                        onchange="ejecutarBusqueda(document.getElementById('globalSearch').value)">
+                        <option value="">Cualquier Puesto</option>
+                        <option value="Frontend Developer">Frontend</option>
+                        <option value="Backend Developer">Backend</option>
+                        <option value="Fullstack Engineer">Fullstack</option>
+                        <option value="DevOps Specialist">DevOps</option>
+                        <option value="QA Engineer">QA</option>
+                        <option value="UI/UX Designer">UI/UX</option>
+                        <option value="Product Manager">Manager</option>
+                        <option value="Data Scientist">Data</option>
+                    </select>
+                </div>
+                <div id="searchResults"
+                    style="display: none; position: absolute; width: 100%; top: 110%; left: 0; max-height: 300px; overflow-y: auto;">
+                </div>
+            </div>
+            <div class="nav-icons">
+                <div class="profile-dropdown" onclick="toggleProfileDropdown(event)">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="avatar" alt="Mi perfil">
+                    <div id="profileDropdown" class="dropdown-content">
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="abrirEdicionPerfil()">
+                            <span>👤</span> Info Cuenta
+                        </a>
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="openSettings()">
+                            <span>⚙️</span> Ajustes
+                        </a>
+                        <hr style="border: 0.5px solid var(--border); margin: 0.4rem 0;">
+                        <a href="javascript:void(0)" class="dropdown-item logout" onclick="handleSignOut()">
+                            <span>🚪</span> Cerrar sesión
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container">
+            <aside class="sidebar-left">
+                <div class="card">
+                    <div class="profile-preview" onclick="verPerfilUsuario(currentUser ? currentUser.uid : null)"
+                        style="text-align: center; cursor: pointer;">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="avatar"
+                            style="width: 80px; height: 80px;" alt="Perfil">
+                        <h3 style="margin-top: 1rem;">Usuario</h3>
+                        <p style="color: var(--text-muted); font-size: 0.9rem;">Miembro de BitBond</p>
+                    </div>
+                    <hr style="border: 0.5px solid var(--border); margin: 1.5rem 0;">
+                    <ul style="list-style: none;">
+                        <li style="margin-bottom: 1rem;"><a href="javascript:void(0)" onclick="cerrarPerfilUsuario()"
+                                style="color: var(--text-main); text-decoration: none;">🏠 Inicio</a></li>
+                        <li style="margin-bottom: 1rem; position: relative;">
+                            <a href="javascript:void(0)" onclick="openRequestsModal()"
+                                style="color: var(--text-muted); text-decoration: none;">👥 Solicitudes</a>
+                            <span id="friendBadge" class="badge" style="display: none;">0</span>
+                        </li>
+                        <li><a href="javascript:void(0)" onclick="openSettings()"
+                                style="color: var(--text-muted); text-decoration: none;">⚙️ Ajustes</a></li>
+                    </ul>
+                </div>
+            </aside>
+
+            <main id="mainFeed" class="feed">
+                <!-- Barra de Historias -->
+                <div id="storiesContainer" class="stories-container">
+                    <!-- Se llena dinámicamente -->
+                </div>
+
+                <div class="card" onclick="openModal()" style="cursor: pointer;">
+
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="avatar" alt="Avatar">
+                        <div
+                            style="background: var(--glass); flex: 1; padding: 0.8rem 1.5rem; border-radius: 30px; color: var(--text-muted);">
+                            ¿Qué estás tramando hoy?</div>
+                    </div>
+                </div>
+                <div id="post-container"></div>
+            </main>
+
+            <!-- Vista de Perfil Detallada (Oculta por defecto) -->
+            <div id="profileView" style="display: none; flex-direction: column; gap: 2rem; flex: 1;">
+                <div class="card profile-detail-card"
+                    style="border: none; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(255,255,255,0.05) 100%);">
+
+                    <div class="profile-header-main">
+                        <div class="profile-avatar-large">
+                            <img id="viewedProfileAvatar" src="" class="avatar"
+                                style="width: 120px; height: 120px; border: 4px solid var(--primary);">
+                        </div>
+                        <div class="profile-info-main">
+                            <div class="profile-name-row">
+                                <h2 id="viewedProfileName">Nombre Usuario</h2>
+                                <button id="followBtn" class="btn btn-primary">Seguir</button>
+                            </div>
+                            <div class="profile-stats">
+                                <div class="stat-item"><b id="countPosts">0</b> posts</div>
+                                <div class="stat-item" onclick="abrirModalSeguidores()" style="cursor: pointer;"><b
+                                        id="countFollowers">0</b> seguidores</div>
+                                <div class="stat-item" onclick="abrirModalSiguiendo()" style="cursor: pointer;"><b
+                                        id="countFollowing">0</b> siguiendo</div>
+                            </div>
+                            <div class="profile-bio-content">
+                                <strong id="viewedProfileJob">Puesto de trabajo</strong>
+                                <p id="viewedProfileBio">Esta es la biografía del usuario...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feed de publicaciones del usuario -->
+                <div id="userPostsFeed" style="display: flex; flex-direction: column; gap: 1rem;">
+                    <!-- Se llena dinámicamente -->
+                </div>
+            </div>
+
+            <aside class="sidebar-right">
+                <div class="card">
+                    <h3 style="margin-bottom: 1rem;">Tendencias</h3>
+                    <div class="trending-item">
+                        <p style="font-size: 0.8rem; color: var(--text-muted);">#JavaScript</p>
+                        <p style="font-weight: 500;">BitBond v1.0 lanzada!</p>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Pantalla de Auth -->
+    <div id="authPage" class="auth-page">
+        <div class="auth-container">
+            <div class="auth-hero">
+                <div class="logo">BitBond</div>
+                <h1>Conecta con tu equipo tech fuera del código.</h1>
+                <p>La red social donde los hobbies valen más que el stack.</p>
+            </div>
+            <div class="auth-form-side">
+                <div class="logo" style="margin-bottom: 2.5rem;">BitBond</div>
+                <h2 id="authTitle" style="margin-bottom: 1rem; text-align: center;">Bienvenido</h2>
+
+                <form id="authForm" onsubmit="handleAuth(event)">
+                    <div class="auth-input-group">
+                        <div id="usernameField" style="display: none;">
+                            <input type="text" id="authUsername" placeholder="Nombre completo">
+                        </div>
+                        <input type="email" id="authEmail" placeholder="Correo electrónico" required>
+                        <input type="password" id="authPassword" placeholder="Contraseña" required>
+
+                        <div id="confirmPasswordField" style="display: none;">
+                            <input type="password" id="authPasswordConfirm" placeholder="Confirmar contraseña">
+                        </div>
+
+                        <!-- Mensajes de Error en Rojo -->
+                        <p id="authErrorMsg"
+                            style="color: #ff4444; font-size: 0.85rem; margin-top: 0.5rem; display: none; text-align: center; font-weight: 500;">
+                        </p>
+                    </div>
+
+                    <button type="submit" id="authSubmitBtn" class="btn btn-primary"
+                        style="width: 100%; margin-top: 1rem;">Entrar</button>
+                </form>
+
+                <div class="auth-footer">
+                    <span id="authMsg">¿No tienes cuenta?</span>
+                    <a href="javascript:void(0)" id="toggleAuthMode" onclick="changeAuthMode()">Regístrate</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales -->
+    <div id="postModal" class="modal-overlay">
+        <div class="modal-content card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>Crear publicación</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <textarea id="postContent" placeholder="¿Qué quieres compartir?"></textarea>
+            <div id="imagePreviewContainer" style="display: none; margin-top: 1rem;">
+                <img id="imagePreview" src=""
+                    style="width: 100%; border-radius: 10px; max-height: 200px; object-fit: cover;">
+            </div>
+            <div
+                style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: space-between; align-items: center;">
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="file" id="imageInput" style="display: none;" onchange="handleFileSelect(event)">
+                    <button class="btn"
+                        style="background: var(--glass); border: 1px solid var(--border); color: var(--text-main);"
+                        onclick="document.getElementById('imageInput').click()">📷 Foto</button>
+                </div>
+
+                <div
+                    style="display: flex; align-items: center; gap: 0.5rem; background: var(--glass); padding: 0.4rem 0.8rem; border-radius: 12px; border: 1px solid var(--border);">
+                    <label for="postVisibility" style="font-size: 0.8rem; color: var(--text-muted);">👁️</label>
+                    <select id="postVisibility"
+                        style="background: transparent; border: none; color: var(--text-main); font-size: 0.85rem; cursor: pointer; outline: none;">
+                        <option value="public" style="background: var(--bg-card);">Público</option>
+                        <option value="friends" style="background: var(--bg-card);">Solo Amigos</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;">
+                <button class="btn" style="background: var(--glass); color: var(--text-main);"
+                    onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-primary" id="submitBtn" onclick="submitPost()">Publicar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal-content glass" style="max-width: 400px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3
+                    style="background: linear-gradient(45deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                    Ajustes</h3>
+                <button class="close-btn" onclick="closeSettings()">&times;</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; background: var(--glass); padding: 1rem; border-radius: 12px;">
+                    <div>
+                        <p style="font-weight: 500; color: var(--text-main);">Modo Oscuro</p>
+                        <p style="font-size: 0.8rem; color: var(--text-muted);">Cambia la apariencia</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="themeToggle" checked onchange="toggleTheme()">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <button class="btn" style="background: #ff4444; color: white;" onclick="handleSignOut()">Cerrar
+                    Sesión</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="requestsModal" class="modal-overlay">
+        <div class="modal-content card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>Solicitudes de Amistad</h3>
+                <button class="close-btn" onclick="closeRequestsModal()">&times;</button>
+            </div>
+            <div id="requestList" style="max-height: 400px; overflow-y: auto;">
+                <p style="text-align: center; color: var(--text-muted);">No tienes solicitudes pendientes.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="profileModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content card" style="max-width: 450px; width: 90%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 id="profileModalTitle">Info Cuenta</h3>
+                <button class="close-btn" onclick="closeProfileModal()">×</button>
+            </div>
+            <form onsubmit="handleGuardarPerfil(event)">
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <div>
+                        <label
+                            style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 0.4rem;">Puesto
+                            de trabajo</label>
+                        <select id="userJob" class="search-bar" style="width: 100%;" required>
+                            <option value="" disabled selected>Selecciona tu puesto...</option>
+                            <option value="Frontend Developer">Frontend Developer</option>
+                            <option value="Backend Developer">Backend Developer</option>
+                            <option value="Fullstack Engineer">Fullstack Engineer</option>
+                            <option value="DevOps Specialist">DevOps Specialist</option>
+                            <option value="QA Engineer">QA Engineer</option>
+                            <option value="UI/UX Designer">UI/UX Designer</option>
+                            <option value="Product Manager">Product Manager</option>
+                            <option value="Data Scientist">Data Scientist</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label
+                            style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 0.4rem;">Sobre
+                            mí (Bio)</label>
+                        <textarea id="userBio" class="search-bar"
+                            style="width: 100%; height: 80px; resize: none; padding: 0.8rem;"
+                            placeholder="Cuéntanos algo sobre ti..."></textarea>
+                    </div>
+
+                    <div style="border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 0.5rem;">
+                        <button type="button" class="btn" style="width: 100%; background: var(--glass);"
+                            onclick="togglePersonalizacion()">
+                            ✨ Personalizar
+                        </button>
+                    </div>
+
+                    <div id="personalizacionSection"
+                        style="display: none; flex-direction: column; gap: 1.5rem; animation: slideDown 0.3s ease; text-align: center; align-items: center;">
+                        <div id="avatarPreviewContainer"
+                            style="margin: 0.5rem auto; position: relative; width: 140px; height: 140px; display: flex; flex-direction: column; align-items: center;">
+                            <img id="avatarPreview" src="" class="avatar"
+                                style="width: 140px; height: 140px; border: 3px solid var(--primary); box-shadow: 0 0 25px rgba(6, 182, 212, 0.3); z-index: 2;">
+                        </div>
+
+                        <!-- Botones de Modo -->
+                        <div style="display: flex; gap: 0.8rem; width: 100%; justify-content: center;">
+                            <button type="button" id="btnModeIA" class="btn-mode" style="flex: 1;"
+                                onclick="setCustomizationMode('ia')">🤖 Generar Avatar</button>
+                            <button type="button" id="btnModePhoto" class="btn-mode" style="flex: 1;"
+                                onclick="setCustomizationMode('photo')">🖼️ Subir Foto</button>
+                        </div>
+
+                        <!-- Sección IA -->
+                        <div id="sectionIA"
+                            style="display: none; flex-direction: column; gap: 1.2rem; width: 100%; padding: 0.5rem 0;">
+                            <div style="display: flex; gap: 1rem; justify-content: center; width: 100%;">
+                                <div class="gender-btn male active" onclick="setGender('male', this)">Hombre</div>
+                                <div class="gender-btn female" onclick="setGender('female', this)">Mujer</div>
+                            </div>
+                            <button type="button" class="btn-generate" onclick="generarAvatarAleatorio()">
+                                🎲 Generar nuevo avatar
+                            </button>
+                        </div>
+
+                        <!-- Sección Foto -->
+                        <div id="sectionPhoto"
+                            style="display: none; flex-direction: column; gap: 1.2rem; width: 100%; padding: 0.5rem 0;">
+                            <input type="file" id="profileImageInput" style="display: none;" accept="image/*"
+                                onchange="handleProfilePhotoSelect(event)">
+                            <button type="button" class="btn btn-secondary"
+                                style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 0.5rem;"
+                                onclick="document.getElementById('profileImageInput').click()">📁 Seleccionar
+                                archivo</button>
+
+                            <div id="cropperContainer"
+                                style="display: none; flex-direction: column; gap: 1rem; background: var(--glass); padding: 0.8rem; border-radius: 12px; border: 1px solid var(--border); width: 100%;">
+                                <div
+                                    style="width: 100%; max-height: 220px; overflow: hidden; border-radius: 8px; background: #000;">
+                                    <img id="cropperImage" src="" style="max-width: 100%;">
+                                </div>
+                                <button type="button" class="btn btn-primary"
+                                    style="width: 100%; display: flex; justify-content: center;"
+                                    onclick="applyCrop()">✂️ Recortar e Insertar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn" style="background: var(--glass);"
+                        onclick="closeProfileModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="saveProfileBtn">Guardar Perfil</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Lista de Usuarios (Seguidores/Siguiendo) -->
+    <div id="userListModal" class="modal-overlay">
+        <div class="modal-content card" style="max-width: 400px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 id="userListModalTitle">Usuarios</h3>
+                <button class="close-btn" onclick="closeUserListModal()">&times;</button>
+            </div>
+            <div id="userListContent"
+                style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem;">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Navegación Móvil Inferior -->
+    <nav class="nav-bottom glass glass-text">
+        <a href="javascript:void(0)" onclick="cerrarPerfilUsuario()" class="nav-bottom-item active">
+            <span>🏠</span>
+            <small>Inicio</small>
+        </a>
+        <a href="javascript:void(0)" class="nav-bottom-item" onclick="abrirBuscadorMovil()">
+            <span>🔍</span>
+            <small>Buscar</small>
+        </a>
+        <a href="javascript:void(0)" class="nav-bottom-item" onclick="openModal()">
+            <div class="publish-btn-mobile">+</div>
+        </a>
+        <a href="javascript:void(0)" class="nav-bottom-item" onclick="openRequestsModal()">
+            <div style="position: relative;">
+                <span>👥</span>
+                <span id="friendBadgeMobile" class="badge" style="display: none;">0</span>
+            </div>
+            <small>Solicitudes</small>
+        </a>
+        <a href="javascript:void(0)" class="nav-bottom-item" onclick="openSettings()">
+            <span>⚙️</span>
+            <small>Ajustes</small>
+        </a>
+    </nav>
+
+    <!-- Modal de Búsqueda Móvil -->
+    <div id="mobileSearchModal" class="modal-overlay">
+        <div class="modal-content card"
+            style="height: 100%; border-radius: 0; max-width: 100%; margin: 0; display: flex; flex-direction: column;">
+            <div style="display: flex; gap: 0.8rem; align-items: center; margin-bottom: 2rem;">
+                <button class="close-btn" onclick="cerrarBuscadorMovil()" style="font-size: 1.5rem;">←</button>
+                <input type="text" id="mobileSearchInput" class="search-bar"
+                    style="flex: 1; border-radius: 12px; padding: 0.8rem 1.2rem;" placeholder="¿A quién buscas?"
+                    oninput="ejecutarBusquedaMovil(this.value)">
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label
+                    style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Filtrar
+                    por puesto</label>
+                <div id="mobileJobFilters" class="mobile-filter-tags">
+                    <!-- Dinámico -->
+                </div>
+            </div>
+
+            <div id="mobileSearchResults" style="flex: 1; overflow-y: auto;">
+                <p style="text-align: center; color: var(--text-muted); margin-top: 3rem; font-size: 0.9rem;">Escribe
+                    algo para empezar a buscar...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visualizador de Historias -->
+    <div id="storyViewer" class="story-viewer">
+        <button class="story-close" onclick="closeStoryViewer()">&times;</button>
+        <div class="story-viewer-content">
+            <div id="storyProgress" class="story-progress-container"></div>
+            <div class="story-header">
+                <img id="storyHeaderAvatar" src="" class="avatar" style="width: 32px; height: 32px;">
+                <span id="storyHeaderName" style="font-weight: 600;"></span>
+                <small id="storyHeaderTime" style="opacity: 0.8;"></small>
+            </div>
+            <img id="storyImage" src="" class="story-image">
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="js/configuracion.js"></script>
+    <script src="js/interfaz.js"></script>
+    <script src="js/autenticacion.js"></script>
+    <script src="js/publicaciones.js"></script>
+    <script src="js/amigos.js"></script>
+    <script src="js/perfil.js"></script>
+    <script src="js/historias.js"></script>
+    <!-- Cropper.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+</body>
+
+
+</html>

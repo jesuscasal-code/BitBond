@@ -1,0 +1,302 @@
+/* Estilos para Perfil y Búsqueda Dinámica */
+
+.search-container {
+    position: relative;
+    flex: 1;
+    max-width: 350px;
+    /* Tamaño contenido por defecto */
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.search-container.active {
+    max-width: 550px;
+    /* Se expande al ganar foco */
+}
+
+.search-filter-select {
+    padding: 0.6rem 1rem;
+    border-radius: 12px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 0;
+    opacity: 0;
+    visibility: hidden;
+    white-space: nowrap;
+    overflow: hidden;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.8rem center;
+    background-size: 1rem;
+}
+
+/* Fix específico para las opciones del selector de búsqueda */
+.search-filter-select option {
+    background-color: var(--dropdown-bg);
+    color: var(--text-main);
+}
+
+.search-container.active .search-filter-select {
+    width: 160px;
+    opacity: 1;
+    visibility: visible;
+    padding-right: 2.2rem;
+    margin-left: 0.5rem;
+}
+
+#searchResults {
+    border-radius: 12px;
+    padding: 0 !important;
+    /* Forzamos padding 0 para eliminar cortes laterales */
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+    background: var(--dropdown-bg);
+    border: 1px solid var(--border);
+    z-index: 1000;
+    overflow: hidden;
+    /* Para que el radius de los hijos no se salga */
+    animation: slideUp 0.2s ease;
+    /* Mantener la animación */
+}
+
+/* Fix global para elementos de formulario en modales */
+.modal-content select.search-bar,
+.modal-content textarea.search-bar,
+.search-filter-select {
+    background-color: var(--bg-body) !important;
+    color: var(--text-main) !important;
+}
+
+/* Estilo unificado para todas las opciones de selectores */
+select option {
+    background-color: var(--dropdown-bg) !important;
+    color: var(--text-main) !important;
+}
+
+.modal-content h3 {
+    background: linear-gradient(45deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+}
+
+.modal-content .search-bar {
+    padding: 0.8rem 1.2rem;
+    border-radius: 14px;
+    margin-top: 0.2rem;
+    transition: all 0.3s ease;
+}
+
+.modal-content .search-bar:focus {
+    border-color: var(--primary);
+    background: rgba(6, 182, 212, 0.05);
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.1);
+}
+
+.search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.8rem 1.2rem;
+    border-radius: 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-main);
+    width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background: var(--glass);
+}
+
+.search-result-info {
+    flex: 1;
+}
+
+.search-result-info h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-main);
+}
+
+.search-result-info p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.dot-indicator {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    background: var(--primary);
+    border-radius: 50%;
+}
+
+.online-indicator {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 12px;
+    height: 12px;
+    background: #10b981;
+    border: 2px solid var(--dropdown-bg);
+    border-radius: 50%;
+}
+
+.arrow-icon {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+/* --- Refined Customization Styles --- */
+
+.personalizacion-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: center;
+    text-align: center;
+}
+
+.gender-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 0.8rem;
+    border-radius: 14px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--text-muted);
+    font-weight: 600;
+    text-align: center;
+}
+
+.gender-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.gender-btn.active {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 8px 20px rgba(6, 182, 212, 0.4);
+    transform: scale(1.02);
+}
+
+.btn-mode {
+    background: var(--glass);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    padding: 0.8rem 1rem;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-mode:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--primary);
+}
+
+.btn-mode.active {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 5px 15px rgba(6, 182, 212, 0.3);
+}
+
+.btn-generate {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    border: none;
+    padding: 0.9rem 2rem;
+    border-radius: 50px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+}
+
+.btn-generate:hover {
+    transform: translateY(-2px) scale(1.02);
+    filter: brightness(1.1);
+    box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+}
+
+.btn-generate:active {
+    transform: scale(0.98);
+}
+
+/* Cropper Circular Fix */
+.cropper-view-box,
+.cropper-face {
+    border-radius: 50%;
+}
+
+.cropper-face {
+    background-color: transparent;
+}
+
+.cropper-view-box {
+    outline: none;
+    box-shadow: 0 0 0 1px #39f;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.stat-item {
+    transition: all 0.3s ease;
+}
+
+.stat-item[onclick]:hover {
+    color: var(--primary);
+    transform: translateY(-2px);
+    cursor: pointer;
+}
+
+.stat-item b {
+    color: var(--text-main);
+}

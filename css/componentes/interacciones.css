@@ -1,0 +1,95 @@
+/* Interacciones de Posts: Likes y Doble Tap */
+.like-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    color: var(--text-main);
+    cursor: pointer;
+    font-size: 1rem;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    padding: 0.5rem;
+    border-radius: 8px;
+}
+
+.like-btn:hover {
+    background: rgba(255, 68, 68, 0.1);
+}
+
+.like-btn.liked {
+    color: #ff4444;
+}
+
+.like-btn i {
+    font-size: 1.2rem;
+}
+
+.like-btn.liked i {
+    animation: heartBeat 0.3s ease-in-out;
+}
+
+@keyframes heartBeat {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.3);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Animación de Doble Tap */
+.post-image-container {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+
+.double-tap-heart {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    color: white;
+    font-size: 5rem;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 10;
+    filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.5));
+}
+
+.double-tap-heart.animate {
+    animation: doubleTapHeartAnim 0.8s ease-out;
+}
+
+@keyframes doubleTapHeartAnim {
+    0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+    }
+
+    15% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 0.9;
+    }
+
+    30% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+
+    80% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(1.5);
+        opacity: 0;
+    }
+}
