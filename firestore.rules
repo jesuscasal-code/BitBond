@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /usuarios/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.author is string
+        && request.resource.data.avatar is string
+        && request.resource.data.content is string
+        && request.resource.data.likedBy is list
+        && request.resource.data.comments is list;
+
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /solicitudes/{requestId} {
+      allow read: if isSignedIn()
+        && (resource.data.de == request.auth.uid || resource.data.para == request.auth.uid);
+
+      allow create: if isSignedIn()
+        && request.resource.data.de == request.auth.uid
+        && request.resource.data.para is string
+        && request.resource.data.para != request.auth.uid
+        && request.resource.data.estado == "pendiente";
+
+      allow delete: if isSignedIn()
+        && (resource.data.de == request.auth.uid || resource.data.para == request.auth.uid);
+
+      allow update: if false;
+    }
+
+    match /stories/{storyId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.author is string
+        && request.resource.data.avatar is string
+        && request.resource.data.media is string;
+
+      allow update, delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+  }
+}
