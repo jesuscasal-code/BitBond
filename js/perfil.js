@@ -1,12 +1,117 @@
 // perfil.js - Lógica de Perfil de Usuario y Búsqueda
 
 window.userData = null;
+let viewedProfileUnsubscribe = null;
+let currentUserProfileUnsubscribe = null;
+let profilePostsUnsubscribe = null;
+let viewedFollowersUnsubscribe = null;
+let latestViewedFollowersDocs = [];
+let viewedFollowingLegacyUnsubscribe = null;
+let viewedFollowingSeguidoresUnsubscribe = null;
+let latestViewedFollowingLegacyDocs = [];
+let latestViewedFollowingSeguidoresDocs = [];
+let activeUserListMode = '';
+
+function stopViewedProfileListener() {
+    if (viewedProfileUnsubscribe) {
+        viewedProfileUnsubscribe();
+        viewedProfileUnsubscribe = null;
+    }
+}
+
+function stopViewedFollowersListener() {
+    if (viewedFollowersUnsubscribe) {
+        viewedFollowersUnsubscribe();
+        viewedFollowersUnsubscribe = null;
+    }
+    if (viewedFollowingLegacyUnsubscribe) {
+        viewedFollowingLegacyUnsubscribe();
+        viewedFollowingLegacyUnsubscribe = null;
+    }
+    if (viewedFollowingSeguidoresUnsubscribe) {
+        viewedFollowingSeguidoresUnsubscribe();
+        viewedFollowingSeguidoresUnsubscribe = null;
+    }
+    latestViewedFollowersDocs = [];
+    latestViewedFollowingLegacyDocs = [];
+    latestViewedFollowingSeguidoresDocs = [];
+}
+
+function stopCurrentUserProfileListener() {
+    if (currentUserProfileUnsubscribe) {
+        currentUserProfileUnsubscribe();
+        currentUserProfileUnsubscribe = null;
+    }
+}
+
+function stopProfilePostsListener() {
+    if (profilePostsUnsubscribe) {
+        profilePostsUnsubscribe();
+        profilePostsUnsubscribe = null;
+    }
+}
+
+async function renderViewedProfileState(uid, u) {
+    if (!u) return;
+    window.viewedProfileData = { uid, ...u };
+
+    document.getElementById('mainFeed').style.display = 'none';
+    document.getElementById('profileView').style.display = 'flex';
+    if (window.setActiveNav) window.setActiveNav('profile');
+
+    document.getElementById('viewedProfileAvatar').src = window.resolveUserAvatar
+        ? window.resolveUserAvatar(u, uid)
+        : "";
+    document.getElementById('viewedProfileName').innerText = u.nombre || "Usuario";
+    document.getElementById('viewedProfileJob').innerText = u.puesto || "Miembro de BitBond";
+    document.getElementById('viewedProfileBio').innerText = u.bio || "Sin biografía.";
+    document.getElementById('countFollowing').innerText = (u.amigos || []).length;
+
+    try {
+        const followersSnapshot = await db.collection("usuarios")
+            .where("amigos", "array-contains", uid)
+            .get();
+        document.getElementById('countFollowers').innerText = followersSnapshot.size;
+    } catch (error) {
+        console.error("Error al refrescar seguidores del perfil:", error);
+    }
+
+    const followBtn = document.getElementById('followBtn');
+    const messageBtn = document.getElementById('messageProfileBtn');
+    if (uid === currentUser.uid) {
+        followBtn.style.display = 'none';
+        if (messageBtn) messageBtn.style.display = 'none';
+    } else {
+        followBtn.style.display = 'block';
+        const soyAmigo = (window.amigos || []).includes(uid);
+        followBtn.innerText = soyAmigo ? "Amigos" : "Seguir";
+        followBtn.onclick = () => {
+            if (!soyAmigo && window.enviarSolicitud) {
+                window.enviarSolicitud(uid, u.nombre, window.resolveUserAvatar ? window.resolveUserAvatar(u, uid) : "");
+            }
+        };
+
+        if (messageBtn) {
+            messageBtn.style.display = soyAmigo ? 'inline-flex' : 'none';
+            messageBtn.onclick = () => {
+                if (window.openChatModal) {
+                    window.openChatModal(uid);
+                } else if (window.openChatEntryPoint) {
+                    window.openChatEntryPoint(uid);
+                }
+            };
+        }
+    }
+
+    renderPostsUsuario(uid);
+}
 
 // Escuchar datos del usuario actual
 if (auth) {
     auth.onAuthStateChanged(user => {
+        stopCurrentUserProfileListener();
         if (user) {
-            db.collection("usuarios").doc(user.uid).onSnapshot(doc => {
+            currentUserProfileUnsubscribe = db.collection("usuarios").doc(user.uid).onSnapshot(doc => {
                 if (doc.exists) {
                     window.userData = doc.data();
                     if (window.writeCachedUserVisual && currentUser) {
@@ -26,6 +131,8 @@ if (auth) {
                     if (window.renderStories) window.renderStories();
                 }
             });
+        } else {
+            window.userData = null;
         }
     });
 }
@@ -136,7 +243,8 @@ async function handleGuardarPerfil(event) {
             puesto: puesto,
             puestoLower: puesto.toLowerCase(),
             bio: bio,
-            amigos: window.userData ? (window.userData.amigos || []) : []
+            amigos: window.userData ? (window.userData.amigos || []) : [],
+            profileUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
         // Actualizar avatar localmente si es posible
@@ -312,6 +420,24 @@ async function verPerfilUsuario(uid) {
     const mobileResults = document.getElementById('mobileSearchModal');
     if (mobileResults) mobileResults.style.display = 'none';
 
+    stopViewedProfileListener();
+    window.viewedProfileUid = uid;
+    renderPostsUsuario(uid);
+
+    viewedProfileUnsubscribe = db.collection("usuarios").doc(uid).onSnapshot(async userDoc => {
+        if (!userDoc.exists) {
+            console.warn("Usuario no encontrado:", uid);
+            alert("Este perfil aún no ha sido configurado.");
+            stopViewedProfileListener();
+            return;
+        }
+
+        await renderViewedProfileState(uid, userDoc.data());
+    }, error => {
+        console.error("Error al escuchar perfil:", error);
+    });
+    return;
+
     try {
         // Cargar datos del usuario
         const userDoc = await db.collection("usuarios").doc(uid).get();
@@ -364,10 +490,10 @@ async function verPerfilUsuario(uid) {
             if (messageBtn) {
                 messageBtn.style.display = soyAmigo ? 'inline-flex' : 'none';
                 messageBtn.onclick = () => {
-                    if (window.openChatEntryPoint) {
-                        window.openChatEntryPoint(uid);
-                    } else if (window.openChatModal) {
+                    if (window.openChatModal) {
                         window.openChatModal(uid);
+                    } else if (window.openChatEntryPoint) {
+                        window.openChatEntryPoint(uid);
                     }
                 };
             }
@@ -470,6 +596,10 @@ function closeUserListModal() {
 }
 
 function cerrarPerfilUsuario() {
+    stopViewedProfileListener();
+    stopProfilePostsListener();
+    window.viewedProfileData = null;
+    window.viewedProfileUid = null;
     document.getElementById('profileView').style.display = 'none';
     document.getElementById('mainFeed').style.display = 'flex';
     if (window.setActiveNav) window.setActiveNav('home');
@@ -480,14 +610,15 @@ async function renderPostsUsuario(uid) {
     const container = document.getElementById('userPostsFeed');
     if (!container) return;
 
+    stopProfilePostsListener();
     container.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Cargando publicaciones...</p>';
 
     try {
         // Usamos onSnapshot para que los likes/comentarios en el perfil sean en tiempo real
-        db.collection("posts")
+        profilePostsUnsubscribe = db.collection("posts")
             .where("uid", "==", uid)
             .limit(20)
-            .onSnapshot(snapshot => {
+            .onSnapshot(async snapshot => {
                 const postsArray = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
                 // Filtrar por visibilidad si no es nuestro propio perfil
@@ -544,7 +675,7 @@ async function renderPostsUsuario(uid) {
                                     ${p.image ? `
                                         <div class="post-image-container">
                                             <img src="${p.image}" class="post-image" style="width:100%; border-radius:12px; margin-top:1rem;">
-                                            <div class="double-tap-heart">❤️</div>
+                                            <div class="double-tap-heart">&#10084;</div>
                                         </div>
                                     ` : ''}
                                 </div>
@@ -555,7 +686,7 @@ async function renderPostsUsuario(uid) {
                                     ${heartIcon}
                                     <span>${likesCount}</span>
                                 </button>
-                            <button class="action-btn" onclick="window.toggleCommentsUI && window.toggleCommentsUI('${p.id}', this)">💬 ${p.comments ? p.comments.length : 0}</button>
+                            <button class="action-btn" onclick="window.toggleCommentsUI && window.toggleCommentsUI('${p.id}', this)">${window.getPostCommentIcon ? window.getPostCommentIcon() : '?'} <span>${p.comments ? p.comments.length : 0}</span></button>
                         </div>
 
                         <div id="comment-section-${p.id}" style="display: none; margin-top: 1rem;">
@@ -685,6 +816,424 @@ async function ejecutarBusquedaMovil(query) {
         console.error("Error búsqueda móvil:", e);
     }
 }
+function refreshViewedProfileRelationship() {
+    if (!window.viewedProfileData) return;
+
+    const uid = window.viewedProfileData.uid;
+    const followBtn = document.getElementById('followBtn');
+    const messageBtn = document.getElementById('messageProfileBtn');
+    const targetAvatar = window.resolveUserAvatar
+        ? window.resolveUserAvatar(window.viewedProfileData, uid)
+        : (window.viewedProfileData.avatar || '');
+
+    if (uid === currentUser.uid) {
+        if (followBtn) followBtn.style.display = 'none';
+        if (messageBtn) messageBtn.style.display = 'none';
+        return;
+    }
+
+    if (followBtn && window.applyFriendshipButtonState) {
+        window.applyFriendshipButtonState(followBtn, uid, {
+            name: window.viewedProfileData.nombre || 'Usuario',
+            avatar: targetAvatar
+        });
+    }
+
+    if (messageBtn) {
+        const canMessage = window.canMessageUser ? window.canMessageUser(uid) : false;
+        messageBtn.style.display = canMessage ? 'inline-flex' : 'none';
+        messageBtn.onclick = () => {
+            if (!canMessage) return;
+            if (window.openChatModal) {
+                window.openChatModal(uid);
+            } else if (window.openChatEntryPoint) {
+                window.openChatEntryPoint(uid);
+            }
+        };
+    }
+}
+
+async function renderFollowingList(container) {
+    if (!container) return;
+
+    const friendIds = (window.viewedProfileData && window.viewedProfileData.amigos) || [];
+    if (friendIds.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding: 1rem;">No sigue a nadie todavÃ­a.</p>';
+        return;
+    }
+
+    try {
+        const docsById = {};
+        const chunks = [];
+
+        for (let index = 0; index < friendIds.length; index += 30) {
+            chunks.push(friendIds.slice(index, index + 30));
+        }
+
+        const snapshots = await Promise.all(chunks.map(chunk =>
+            db.collection("usuarios")
+                .where(firebase.firestore.FieldPath.documentId(), 'in', chunk)
+                .get()
+        ));
+
+        snapshots.forEach(snapshot => {
+            snapshot.docs.forEach(doc => {
+                docsById[doc.id] = doc;
+            });
+        });
+
+        const orderedDocs = friendIds.map(friendUid => docsById[friendUid]).filter(Boolean);
+        renderUserList(orderedDocs, container);
+    } catch (error) {
+        console.error("Error al cargar lista de siguiendo:", error);
+        container.innerHTML = '<p style="text-align:center; color:#ff4444; padding: 1rem;">Error al cargar lista.</p>';
+    }
+}
+
+function refreshViewedProfileSocialUi() {
+    if (!window.viewedProfileData) return;
+
+    const followersEl = document.getElementById('countFollowers');
+    const followingEl = document.getElementById('countFollowing');
+
+    if (followersEl) followersEl.innerText = latestViewedFollowersDocs.length;
+    if (followingEl) followingEl.innerText = (window.viewedProfileData.amigos || []).length;
+
+    const modal = document.getElementById('userListModal');
+    if (!modal || modal.style.display !== 'flex') return;
+
+    const content = document.getElementById('userListContent');
+    if (!content) return;
+
+    if (activeUserListMode === 'followers') {
+        renderUserList(latestViewedFollowersDocs, content);
+    } else if (activeUserListMode === 'following') {
+        renderFollowingList(content);
+    }
+}
+
+function subscribeToViewedProfileFollowers(uid) {
+    stopViewedFollowersListener();
+    if (!uid) return;
+
+    viewedFollowersUnsubscribe = db.collection("usuarios")
+        .where("amigos", "array-contains", uid)
+        .onSnapshot(snapshot => {
+            latestViewedFollowersDocs = snapshot.docs;
+            refreshViewedProfileSocialUi();
+        }, error => {
+            console.error("Error al escuchar seguidores del perfil:", error);
+            latestViewedFollowersDocs = [];
+            refreshViewedProfileSocialUi();
+        });
+}
+
+async function renderViewedProfileState(uid, u) {
+    if (!u) return;
+    window.viewedProfileData = { uid, ...u };
+
+    document.getElementById('mainFeed').style.display = 'none';
+    document.getElementById('profileView').style.display = 'flex';
+    if (window.setActiveNav) window.setActiveNav('profile');
+
+    document.getElementById('viewedProfileAvatar').src = window.resolveUserAvatar
+        ? window.resolveUserAvatar(u, uid)
+        : "";
+    document.getElementById('viewedProfileName').innerText = u.nombre || "Usuario";
+    document.getElementById('viewedProfileJob').innerText = u.puesto || "Miembro de BitBond";
+    document.getElementById('viewedProfileBio').innerText = u.bio || "Sin biografÃ­a.";
+    document.getElementById('countFollowing').innerText = (u.amigos || []).length;
+
+    refreshViewedProfileRelationship();
+    refreshViewedProfileSocialUi();
+    renderPostsUsuario(uid);
+}
+
+async function verPerfilUsuario(uid) {
+    console.log("Abriendo perfil para:", uid);
+    if (!uid) {
+        console.error("UID es nulo o indefinido");
+        return;
+    }
+
+    const resultsContainer = document.getElementById('searchResults');
+    if (resultsContainer) resultsContainer.style.display = 'none';
+    const mobileResults = document.getElementById('mobileSearchModal');
+    if (mobileResults) mobileResults.style.display = 'none';
+
+    stopViewedProfileListener();
+    stopViewedFollowersListener();
+    window.viewedProfileUid = uid;
+    subscribeToViewedProfileFollowers(uid);
+    renderPostsUsuario(uid);
+
+    viewedProfileUnsubscribe = db.collection("usuarios").doc(uid).onSnapshot(async userDoc => {
+        if (!userDoc.exists) {
+            console.warn("Usuario no encontrado:", uid);
+            alert("Este perfil aÃºn no ha sido configurado.");
+            stopViewedProfileListener();
+            stopViewedFollowersListener();
+            return;
+        }
+
+        await renderViewedProfileState(uid, userDoc.data());
+    }, error => {
+        console.error("Error al escuchar perfil:", error);
+    });
+}
+
+async function abrirModalSeguidores() {
+    const uid = window.viewedProfileUid;
+    if (!uid) return;
+
+    const modal = document.getElementById('userListModal');
+    const title = document.getElementById('userListModalTitle');
+    const content = document.getElementById('userListContent');
+
+    title.innerText = "Seguidores";
+    activeUserListMode = 'followers';
+    modal.style.display = 'flex';
+    renderUserList(latestViewedFollowersDocs, content);
+}
+
+async function abrirModalSiguiendo() {
+    const uid = window.viewedProfileUid;
+    if (!uid) return;
+
+    const modal = document.getElementById('userListModal');
+    const title = document.getElementById('userListModalTitle');
+    const content = document.getElementById('userListContent');
+
+    title.innerText = "Siguiendo";
+    activeUserListMode = 'following';
+    content.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding: 1rem;">Cargando...</p>';
+    modal.style.display = 'flex';
+    await renderFollowingList(content);
+}
+
+function closeUserListModal() {
+    activeUserListMode = '';
+    document.getElementById('userListModal').style.display = 'none';
+}
+
+function cerrarPerfilUsuario() {
+    stopViewedProfileListener();
+    stopProfilePostsListener();
+    stopViewedFollowersListener();
+    activeUserListMode = '';
+    window.viewedProfileData = null;
+    window.viewedProfileUid = null;
+    document.getElementById('profileView').style.display = 'none';
+    document.getElementById('mainFeed').style.display = 'flex';
+    if (window.setActiveNav) window.setActiveNav('home');
+}
+
+function getViewedProfileFollowerIds() {
+    if (!window.viewedProfileData) return [];
+    if (window.getUserFollowerIds) return window.getUserFollowerIds(window.viewedProfileData);
+    return [...new Set([
+        ...((window.viewedProfileData.seguidores) || []),
+        ...((window.viewedProfileData.amigos) || [])
+    ].filter(Boolean))];
+}
+
+async function getUsersByIds(uids) {
+    const orderedIds = [...new Set((uids || []).filter(Boolean))];
+    if (orderedIds.length === 0) return [];
+
+    const docsById = {};
+    const chunks = [];
+
+    for (let index = 0; index < orderedIds.length; index += 30) {
+        chunks.push(orderedIds.slice(index, index + 30));
+    }
+
+    const snapshots = await Promise.all(chunks.map(chunk =>
+        db.collection("usuarios")
+            .where(firebase.firestore.FieldPath.documentId(), 'in', chunk)
+            .get()
+    ));
+
+    snapshots.forEach(snapshot => {
+        snapshot.docs.forEach(doc => {
+            docsById[doc.id] = doc;
+        });
+    });
+
+    return orderedIds.map(uid => docsById[uid]).filter(Boolean);
+}
+
+async function renderFollowersList(container) {
+    if (!container) return;
+
+    const followerIds = getViewedProfileFollowerIds();
+    if (followerIds.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding: 1rem;">No tiene seguidores todavia.</p>';
+        return;
+    }
+
+    try {
+        const docs = await getUsersByIds(followerIds);
+        renderUserList(docs, container);
+    } catch (error) {
+        console.error("Error al cargar lista de seguidores:", error);
+        container.innerHTML = '<p style="text-align:center; color:#ff4444; padding: 1rem;">Error al cargar lista.</p>';
+    }
+}
+
+async function renderFollowingList(container) {
+    if (!container) return;
+
+    const docsById = {};
+    [...latestViewedFollowingLegacyDocs, ...latestViewedFollowingSeguidoresDocs].forEach(doc => {
+        if (doc && doc.id) docsById[doc.id] = doc;
+    });
+
+    const orderedDocs = Object.values(docsById);
+    if (orderedDocs.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding: 1rem;">No sigue a nadie todavia.</p>';
+        return;
+    }
+
+    renderUserList(orderedDocs, container);
+}
+
+function refreshViewedProfileSocialUi() {
+    if (!window.viewedProfileData) return;
+
+    const followersEl = document.getElementById('countFollowers');
+    const followingEl = document.getElementById('countFollowing');
+    const followingIds = new Set([
+        ...latestViewedFollowingLegacyDocs.map(doc => doc.id),
+        ...latestViewedFollowingSeguidoresDocs.map(doc => doc.id)
+    ]);
+
+    if (followersEl) followersEl.innerText = getViewedProfileFollowerIds().length;
+    if (followingEl) followingEl.innerText = followingIds.size;
+
+    const modal = document.getElementById('userListModal');
+    if (!modal || modal.style.display !== 'flex') return;
+
+    const content = document.getElementById('userListContent');
+    if (!content) return;
+
+    if (activeUserListMode === 'followers') {
+        renderFollowersList(content);
+    } else if (activeUserListMode === 'following') {
+        renderFollowingList(content);
+    }
+}
+
+function subscribeToViewedProfileFollowers(uid) {
+    stopViewedFollowersListener();
+    if (!uid) return;
+
+    viewedFollowingLegacyUnsubscribe = db.collection("usuarios")
+        .where("amigos", "array-contains", uid)
+        .onSnapshot(snapshot => {
+            latestViewedFollowingLegacyDocs = snapshot.docs;
+            refreshViewedProfileSocialUi();
+        }, error => {
+            console.error("Error al escuchar siguiendo legacy del perfil:", error);
+            latestViewedFollowingLegacyDocs = [];
+            refreshViewedProfileSocialUi();
+        });
+
+    viewedFollowingSeguidoresUnsubscribe = db.collection("usuarios")
+        .where("seguidores", "array-contains", uid)
+        .onSnapshot(snapshot => {
+            latestViewedFollowingSeguidoresDocs = snapshot.docs;
+            refreshViewedProfileSocialUi();
+        }, error => {
+            console.error("Error al escuchar siguiendo del perfil:", error);
+            latestViewedFollowingSeguidoresDocs = [];
+            refreshViewedProfileSocialUi();
+        });
+
+    refreshViewedProfileSocialUi();
+}
+
+async function renderViewedProfileState(uid, u) {
+    if (!u) return;
+    window.viewedProfileData = { uid, ...u };
+
+    document.getElementById('mainFeed').style.display = 'none';
+    document.getElementById('profileView').style.display = 'flex';
+    if (window.setActiveNav) window.setActiveNav('profile');
+
+    document.getElementById('viewedProfileAvatar').src = window.resolveUserAvatar
+        ? window.resolveUserAvatar(u, uid)
+        : "";
+    document.getElementById('viewedProfileName').innerText = u.nombre || "Usuario";
+    document.getElementById('viewedProfileJob').innerText = u.puesto || "Miembro de BitBond";
+    document.getElementById('viewedProfileBio').innerText = u.bio || "Sin biografia.";
+
+    refreshViewedProfileRelationship();
+    refreshViewedProfileSocialUi();
+    renderPostsUsuario(uid);
+}
+
+async function verPerfilUsuario(uid) {
+    console.log("Abriendo perfil para:", uid);
+    if (!uid) {
+        console.error("UID es nulo o indefinido");
+        return;
+    }
+
+    const resultsContainer = document.getElementById('searchResults');
+    if (resultsContainer) resultsContainer.style.display = 'none';
+    const mobileResults = document.getElementById('mobileSearchModal');
+    if (mobileResults) mobileResults.style.display = 'none';
+
+    stopViewedProfileListener();
+    stopViewedFollowersListener();
+    window.viewedProfileUid = uid;
+    subscribeToViewedProfileFollowers(uid);
+    renderPostsUsuario(uid);
+
+    viewedProfileUnsubscribe = db.collection("usuarios").doc(uid).onSnapshot(async userDoc => {
+        if (!userDoc.exists) {
+            console.warn("Usuario no encontrado:", uid);
+            alert("Este perfil aun no ha sido configurado.");
+            stopViewedProfileListener();
+            stopViewedFollowersListener();
+            return;
+        }
+
+        await renderViewedProfileState(uid, userDoc.data());
+    }, error => {
+        console.error("Error al escuchar perfil:", error);
+    });
+}
+
+async function abrirModalSeguidores() {
+    const uid = window.viewedProfileUid;
+    if (!uid) return;
+
+    const modal = document.getElementById('userListModal');
+    const title = document.getElementById('userListModalTitle');
+    const content = document.getElementById('userListContent');
+
+    title.innerText = "Seguidores";
+    activeUserListMode = 'followers';
+    modal.style.display = 'flex';
+    await renderFollowersList(content);
+}
+
+async function abrirModalSiguiendo() {
+    const uid = window.viewedProfileUid;
+    if (!uid) return;
+
+    const modal = document.getElementById('userListModal');
+    const title = document.getElementById('userListModalTitle');
+    const content = document.getElementById('userListContent');
+
+    title.innerText = "Siguiendo";
+    activeUserListMode = 'following';
+    content.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding: 1rem;">Cargando...</p>';
+    modal.style.display = 'flex';
+    await renderFollowingList(content);
+}
 
 // Exportar
 window.abrirModalSeguidores = abrirModalSeguidores;
@@ -705,3 +1254,5 @@ window.abrirBuscadorMovil = abrirBuscadorMovil;
 window.cerrarBuscadorMovil = cerrarBuscadorMovil;
 window.toggleFiltroMovil = toggleFiltroMovil;
 window.ejecutarBusquedaMovil = ejecutarBusquedaMovil;
+window.refreshViewedProfileRelationship = refreshViewedProfileRelationship;
+window.refreshViewedProfileSocialUi = refreshViewedProfileSocialUi;

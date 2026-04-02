@@ -3,10 +3,21 @@
 var allStories = [];
 var currentStoryIndex = 0;
 var storyTimer = null;
+var storiesUnsubscribe = null;
 
-// Escuchar historias
-if (db) {
-    db.collection("stories").onSnapshot(snapshot => {
+function cleanupStoriesListener() {
+    if (storiesUnsubscribe) {
+        storiesUnsubscribe();
+        storiesUnsubscribe = null;
+    }
+}
+
+function subscribeToStories() {
+    if (!db || !currentUser) return;
+
+    cleanupStoriesListener();
+
+    storiesUnsubscribe = db.collection("stories").onSnapshot(snapshot => {
         const now = Date.now();
         allStories = snapshot.docs.map(doc => ({
             id: doc.id,
@@ -19,6 +30,10 @@ if (db) {
         renderStories();
     }, error => {
         console.error("Error en Historias:", error);
+        if (error && error.code === 'permission-denied') {
+            allStories = [];
+            renderStories();
+        }
     });
 }
 
@@ -89,9 +104,9 @@ function renderStories() {
     html += sortedUsers.filter(u => u.uid !== currentUser.uid).map(u => `
         <div class="story-item" onclick="viewStories('${u.uid}')">
             <div class="story-ring ${u.allSeen ? 'watched' : ''}">
-                <img src="${window.resolveUserAvatar ? window.resolveUserAvatar(u, u.uid) : ''}" class="avatar" loading="lazy" decoding="async">
+                <img src="${window.resolveUserAvatar ? window.resolveUserAvatar(window.getResolvedUserProfile ? window.getResolvedUserProfile(u, u.uid) : u, u.uid) : ''}" class="avatar" loading="lazy" decoding="async">
             </div>
-            <span>${u.author.split(' ')[0]}</span>
+            <span>${((window.getResolvedUserProfile ? window.getResolvedUserProfile(u, u.uid) : u).nombre || u.author || 'Usuario').split(' ')[0]}</span>
         </div>
     `).join('');
 
@@ -174,12 +189,15 @@ function showStory() {
 
     const header = document.querySelector('.story-header');
     if (header) {
+        const liveStoryProfile = window.getResolvedUserProfile
+            ? window.getResolvedUserProfile({ avatar: story.avatar, uid: story.uid, nombre: story.author }, story.uid)
+            : { avatar: story.avatar, uid: story.uid, nombre: story.author };
         header.onclick = story.uid === currentUser.uid ? () => { createNewStory(); closeStoryViewer(); } : null;
         header.style.cursor = story.uid === currentUser.uid ? 'pointer' : 'default';
         header.innerHTML = `
-            <img src="${window.resolveUserAvatar ? window.resolveUserAvatar({ avatar: story.avatar, uid: story.uid, nombre: story.author }, story.uid) : ''}" class="avatar" style="width: 32px; height: 32px; border: 2px solid white;" decoding="async">
+            <img src="${window.resolveUserAvatar ? window.resolveUserAvatar(liveStoryProfile, story.uid) : ''}" class="avatar" style="width: 32px; height: 32px; border: 2px solid white;" decoding="async">
             <div style="display:flex; flex-direction:column; gap:2px;">
-                <span style="font-weight: 600; font-size: 0.9rem;">${story.author} ${story.uid === currentUser.uid ? '(Tú)' : ''}</span>
+                <span style="font-weight: 600; font-size: 0.9rem;">${liveStoryProfile.nombre || story.author} ${story.uid === currentUser.uid ? '(Tú)' : ''}</span>
                 <small style="opacity: 0.8; font-size: 0.75rem;">${story.createdAt ? calcularTiempo(story.createdAt) : "Ahora"}</small>
             </div>
             ${story.uid === currentUser.uid ? '<small style="margin-left:auto; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.7rem;">Añadir +</small>' : ''}
@@ -237,6 +255,18 @@ function calcularTiempo(timestamp) {
     if (dif < 60) return "ahora";
     if (dif < 3600) return Math.floor(dif / 60) + "m";
     return Math.floor(dif / 3600) + "h";
+}
+
+if (auth) {
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            subscribeToStories();
+        } else {
+            cleanupStoriesListener();
+            allStories = [];
+            renderStories();
+        }
+    });
 }
 
 // Exportar

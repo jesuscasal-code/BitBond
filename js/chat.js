@@ -6,13 +6,14 @@ var chatSelectedConversationId = null;
 var chatConversationUnsubscribe = null;
 var chatMessagesUnsubscribe = null;
 var chatUserCache = {};
+var chatUserProfileUnsubscribes = {};
 var chatSearchTerm = "";
 var chatMiniOpen = false;
 var chatMiniMode = "inbox";
 var chatCurrentMessages = [];
 var chatLastReadReceiptKey = "";
 
-var CHAT_EMOJI_OPTIONS = ["😀", "😂", "😍", "🥹", "😎", "🤝", "🙏", "🔥", "✨", "🎉", "❤️", "💙", "👍", "👀", "💪", "🙌"];
+var CHAT_EMOJI_OPTIONS = ["?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?"];
 
 function shouldUseChatMiniDock() {
     return !!currentUser && window.innerWidth > 1024;
@@ -105,13 +106,77 @@ async function getChatUsersByIds(uids) {
     return uniqueIds.map(uid => chatUserCache[uid]).filter(Boolean);
 }
 
+function refreshChatUserSurfaces(friendUid) {
+    const targetUid = friendUid || chatSelectedFriendUid;
+    renderChatConversationList();
+    renderChatMiniDock();
+
+    if (targetUid && targetUid === chatSelectedFriendUid) {
+        updateChatHeader(targetUid);
+        updateChatMiniHeader(targetUid);
+    }
+}
+
+function syncChatUserProfileListeners(uids) {
+    const requiredIds = new Set((uids || []).filter(Boolean));
+
+    Object.keys(chatUserProfileUnsubscribes).forEach(uid => {
+        if (requiredIds.has(uid)) return;
+        chatUserProfileUnsubscribes[uid]();
+        delete chatUserProfileUnsubscribes[uid];
+        delete chatUserCache[uid];
+    });
+
+    requiredIds.forEach(uid => {
+        if (chatUserProfileUnsubscribes[uid]) return;
+
+        chatUserProfileUnsubscribes[uid] = db.collection("usuarios").doc(uid).onSnapshot(doc => {
+            if (doc && doc.exists) {
+                chatUserCache[uid] = {
+                    uid: uid,
+                    ...doc.data()
+                };
+            } else {
+                chatUserCache[uid] = {
+                    uid: uid,
+                    nombre: "Usuario",
+                    puesto: "Miembro de BitBond",
+                    avatar: ""
+                };
+            }
+
+            refreshChatUserSurfaces(uid);
+        }, () => {
+            chatUserCache[uid] = chatUserCache[uid] || {
+                uid: uid,
+                nombre: "Usuario",
+                puesto: "Miembro de BitBond",
+                avatar: ""
+            };
+        });
+    });
+}
+
+function cleanupChatUserProfileListeners() {
+    Object.keys(chatUserProfileUnsubscribes).forEach(uid => {
+        chatUserProfileUnsubscribes[uid]();
+        delete chatUserProfileUnsubscribes[uid];
+    });
+}
+
 function getChatFriendProfile(friendUid) {
-    return chatUserCache[friendUid] || {
+    const cachedProfile = chatUserCache[friendUid] || {
         uid: friendUid,
         nombre: "Usuario",
         puesto: "Miembro de BitBond",
         avatar: ""
     };
+
+    if (window.getResolvedUserProfile) {
+        return window.getResolvedUserProfile(cachedProfile, friendUid);
+    }
+
+    return cachedProfile;
 }
 
 function getChatAvatarFallback(profile) {
@@ -152,7 +217,9 @@ function canUseChatWith(friendUid) {
     if (!currentUser || !friendUid) return false;
     if (friendUid === currentUser.uid) return false;
 
-    return (window.amigos || []).includes(friendUid) || hasExistingConversationWith(friendUid);
+    return window.canMessageUser
+        ? window.canMessageUser(friendUid)
+        : ((window.amigos || []).includes(friendUid) || hasExistingConversationWith(friendUid));
 }
 
 function getChatConversationById(conversationId) {
@@ -224,7 +291,7 @@ function buildChatConversationMarkup(conversation, options = {}) {
     const peerUid = getChatPeerUid(conversation);
     const profile = getChatFriendProfile(peerUid);
     const previewPrefix = conversation.lastMessageSender === currentUser.uid ? 'Tu: ' : '';
-    const previewText = `${previewPrefix}${conversation.lastMessageText || 'Sin mensajes todavia.'}`;
+    const previewText = `${previewPrefix}${conversation.lastMessageText || 'Sin mensajes todavía.'}`;
     const updatedLabel = formatChatTimestamp(conversation.lastMessageAt || conversation.updatedAt);
     const isActive = chatSelectedConversationId === conversation.id;
     const isUnread = isConversationUnread(conversation);
@@ -273,7 +340,7 @@ function renderChatConversationList() {
     if (!container) return;
 
     if (!currentUser) {
-        container.innerHTML = '<div class="chat-empty-mini">Inicia sesion para ver tus conversaciones.</div>';
+        container.innerHTML = '<div class="chat-empty-mini">Inicia sesión para ver tus conversaciones.</div>';
         if (count) count.innerText = '0 chats';
         return;
     }
@@ -299,12 +366,12 @@ function renderChatConversationList() {
     }
 
     if (orderedConversations.length === 0) {
-        container.innerHTML = '<div class="chat-empty-mini">Todavia no tienes conversaciones. Escribe a alguien desde su perfil para iniciar una.</div>';
+        container.innerHTML = '<div class="chat-empty-mini">Todavía no tienes conversaciones. Escribe a alguien desde su perfil para iniciar una.</div>';
         return;
     }
 
     if (filteredConversations.length === 0) {
-        container.innerHTML = '<div class="chat-empty-mini">No hay conversaciones que coincidan con tu busqueda.</div>';
+        container.innerHTML = '<div class="chat-empty-mini">No hay conversaciones que coincidan con tu búsqueda.</div>';
         return;
     }
 
@@ -345,12 +412,12 @@ function renderChatMiniDock() {
 
     launcher.classList.toggle('has-conversations', orderedConversations.length > 0);
     dock.classList.toggle('open', chatMiniOpen);
-    panel.style.display = chatMiniOpen ? 'block' : 'none';
-    inboxView.style.display = chatMiniMode === 'inbox' ? 'block' : 'none';
+    panel.style.display = chatMiniOpen ? 'flex' : 'none';
+    inboxView.style.display = chatMiniMode === 'inbox' ? 'flex' : 'none';
     threadView.style.display = chatMiniMode === 'thread' ? 'flex' : 'none';
 
     if (orderedConversations.length === 0) {
-        list.innerHTML = '<div class="chat-empty-mini">Todavia no tienes conversaciones.</div>';
+        list.innerHTML = '<div class="chat-empty-mini">Todavía no tienes conversaciones.</div>';
         return;
     }
 
@@ -454,7 +521,7 @@ function resetChatMiniThread() {
     const input = document.getElementById('chatMiniMessageInput');
     closeChatEmojiPickers();
     chatCurrentMessages = [];
-    if (messages) messages.innerHTML = '<div class="chat-empty-mini">Todavia no hay mensajes.</div>';
+    if (messages) messages.innerHTML = '<div class="chat-empty-mini">Todavía no hay mensajes.</div>';
     if (input) input.value = '';
 }
 
@@ -468,7 +535,7 @@ function resetChatView() {
     chatCurrentMessages = [];
     if (emptyState) emptyState.style.display = 'flex';
     if (conversationView) conversationView.style.display = 'none';
-    if (messages) messages.innerHTML = '<div class="chat-empty-mini">Todavia no hay mensajes.</div>';
+    if (messages) messages.innerHTML = '<div class="chat-empty-mini">Todavía no hay mensajes.</div>';
     if (input) input.value = '';
 }
 
@@ -520,7 +587,7 @@ function getChatMessageDeliveryStatus(message, conversation) {
 
 function buildChatMessagesMarkup(messages, options = {}) {
     if (!messages || messages.length === 0) {
-        return '<div class="chat-empty-mini">Rompe el hielo y envia el primer mensaje.</div>';
+        return '<div class="chat-empty-mini">Rompe el hielo y envía el primer mensaje.</div>';
     }
 
     const conversation = options.conversation || getChatConversationById(chatSelectedConversationId);
@@ -606,7 +673,7 @@ async function markConversationAsRead(conversationId, latestMessage) {
         }, { merge: true });
     } catch (error) {
         chatLastReadReceiptKey = "";
-        console.error("Error al marcar conversacion como leida:", error);
+        console.error("Error al marcar conversación como leída:", error);
     }
 }
 
@@ -732,6 +799,7 @@ function subscribeToChatConversations() {
                 .filter(Boolean);
 
             await getChatUsersByIds(peerIds);
+            syncChatUserProfileListeners(peerIds);
             renderChatConversationList();
             renderChatMiniDock();
             if (window.renderQuickStats) window.renderQuickStats();
@@ -1011,6 +1079,7 @@ if (auth) {
         currentUser = user || null;
         cleanupConversationListener();
         cleanupChatMessagesListener();
+        cleanupChatUserProfileListeners();
 
         if (user) {
             subscribeToChatConversations();
@@ -1062,3 +1131,6 @@ window.getOrderedChatConversations = getOrderedChatConversations;
 window.getChatFriendProfile = getChatFriendProfile;
 window.getChatPeerUid = getChatPeerUid;
 window.getChatUnreadCount = getChatUnreadCount;
+window.renderChatConversationList = renderChatConversationList;
+window.renderChatMiniDock = renderChatMiniDock;
+window.hasExistingConversationWith = hasExistingConversationWith;

@@ -52,19 +52,67 @@
                 </div>
             </div>
             <div class="nav-icons">
-                <div class="profile-dropdown" onclick="toggleProfileDropdown(event)">
-                    <img src="" class="avatar" alt="Mi perfil">
-                    <div id="profileDropdown" class="dropdown-content">
-                        <a href="javascript:void(0)" class="dropdown-item" onclick="abrirEdicionPerfil()">
-                            <span>👤</span> Editar perfil
-                        </a>
-                        <a href="javascript:void(0)" class="dropdown-item" onclick="openSettings()">
-                            <span>⚙️</span> Ajustes
-                        </a>
-                        <hr style="border: 0.5px solid var(--border); margin: 0.4rem 0;">
-                        <a href="javascript:void(0)" class="dropdown-item logout" onclick="handleSignOut()">
-                            <span>🚪</span> Cerrar sesión
-                        </a>
+                <div class="profile-dropdown">
+                    <button type="button" class="profile-dropdown-trigger" onclick="toggleProfileDropdown(event)" aria-label="Abrir menú de perfil" aria-haspopup="true" aria-expanded="false">
+                        <img src="" class="avatar" alt="Mi perfil">
+                    </button>
+                    <div id="profileDropdown" class="dropdown-content" onclick="event.stopPropagation()">
+                        <div class="dropdown-modern-menu">
+                            <a href="javascript:void(0)" class="dropdown-entry" onclick="event.preventDefault(); event.stopPropagation(); closeProfileDropdown(); verPerfilUsuario(currentUser ? currentUser.uid : null)">
+                                <span class="dropdown-entry-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path>
+                                        <path d="M5 20a7 7 0 0 1 14 0"></path>
+                                    </svg>
+                                </span>
+                                <span class="dropdown-entry-copy">
+                                    <span class="dropdown-entry-title">Mi perfil</span>
+                                    <span class="dropdown-entry-subtitle">Ver tu perfil público</span>
+                                </span>
+                            </a>
+
+                            <a href="javascript:void(0)" class="dropdown-entry" onclick="event.preventDefault(); event.stopPropagation(); closeProfileDropdown(); abrirEdicionPerfil()">
+                                <span class="dropdown-entry-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="m4 20 4.5-1 9.6-9.6a2.1 2.1 0 0 0 0-3L17.6 5a2.1 2.1 0 0 0-3 0L5 14.6 4 20Z"></path>
+                                        <path d="m13.5 6.5 4 4"></path>
+                                    </svg>
+                                </span>
+                                <span class="dropdown-entry-copy">
+                                    <span class="dropdown-entry-title">Editar perfil</span>
+                                    <span class="dropdown-entry-subtitle">Actualizar foto, bio y puesto</span>
+                                </span>
+                            </a>
+
+                            <a href="javascript:void(0)" class="dropdown-entry" onclick="event.preventDefault(); event.stopPropagation(); closeProfileDropdown(); openSettings()">
+                                <span class="dropdown-entry-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="3.25"></circle>
+                                        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.09a1.7 1.7 0 0 0-1.04-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.4a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9.1a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.1a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.35 15z"></path>
+                                    </svg>
+                                </span>
+                                <span class="dropdown-entry-copy">
+                                    <span class="dropdown-entry-title">Ajustes</span>
+                                    <span class="dropdown-entry-subtitle">Cuenta y preferencias</span>
+                                </span>
+                            </a>
+
+                            <div class="dropdown-divider" role="separator"></div>
+
+                            <a href="javascript:void(0)" class="dropdown-entry logout" onclick="event.preventDefault(); event.stopPropagation(); closeProfileDropdown(); handleSignOut()">
+                                <span class="dropdown-entry-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                        <path d="M16 17l5-5-5-5"></path>
+                                        <path d="M21 12H9"></path>
+                                    </svg>
+                                </span>
+                                <span class="dropdown-entry-copy">
+                                    <span class="dropdown-entry-title">Cerrar sesión</span>
+                                    <span class="dropdown-entry-subtitle">Salir de tu cuenta actual</span>
+                                </span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -184,8 +232,7 @@
 
                     <div>
                         <div
-                            style="background: var(--glass); flex: 1; padding: 0.8rem 1.5rem; border-radius: 30px; color: var(--text-muted);">
-                            ¿Qué estás tramando hoy?</div>
+                            style="background: var(--glass); flex: 1; padding: 0.8rem 1.5rem; border-radius: 30px; color: var(--text-muted);">¿Qué estás tramando hoy?</div>
                     </div>
                 </div>
                 <div id="post-container"></div>
@@ -305,12 +352,12 @@
                     <input type="file" id="imageInput" style="display: none;" onchange="handleFileSelect(event)">
                     <button class="btn"
                         style="background: var(--glass); border: 1px solid var(--border); color: var(--text-main);"
-                        onclick="document.getElementById('imageInput').click()">📷 Foto</button>
+                        onclick="document.getElementById('imageInput').click()">Foto</button>
                 </div>
 
                 <div
                     style="display: flex; align-items: center; gap: 0.5rem; background: var(--glass); padding: 0.4rem 0.8rem; border-radius: 12px; border: 1px solid var(--border);">
-                    <label for="postVisibility" style="font-size: 0.8rem; color: var(--text-muted);">👁️</label>
+                    <label for="postVisibility" style="font-size: 0.8rem; color: var(--text-muted);">Visibilidad</label>
                     <select id="postVisibility"
                         style="background: transparent; border: none; color: var(--text-main); font-size: 0.85rem; cursor: pointer; outline: none;">
                         <option value="public" style="background: var(--bg-card);">Público</option>
@@ -346,8 +393,7 @@
                         <span class="slider round"></span>
                     </label>
                 </div>
-                <button class="btn" style="background: #ff4444; color: white;" onclick="handleSignOut()">Cerrar
-                    Sesión</button>
+                <button class="btn" style="background: #ff4444; color: white;" onclick="handleSignOut()">Cerrar sesión</button>
             </div>
         </div>
     </div>
@@ -378,14 +424,14 @@
 
                     <div class="chat-sidebar-section">
                         <input type="text" id="chatSearchInput" class="chat-search-input"
-                            placeholder="Buscar conversacion..." autocomplete="off"
+                            placeholder="Buscar conversación..." autocomplete="off"
                             oninput="handleChatSearchInput(this.value)">
                         <div class="chat-section-heading">
                             <span>Conversaciones</span>
                             <span id="chatConversationCount">0 chats</span>
                         </div>
                         <div id="chatConversationList" class="chat-list">
-                            <div class="chat-empty-mini">Todavia no tienes conversaciones.</div>
+                            <div class="chat-empty-mini">Todavía no tienes conversaciones.</div>
                         </div>
                     </div>
                 </aside>
@@ -393,9 +439,9 @@
                 <section class="chat-main">
                     <div id="chatEmptyState" class="chat-empty-state">
                         <div class="chat-empty-card">
-                            <p class="chat-kicker">Mensajeria en tiempo real</p>
-                            <h3>Selecciona una conversacion</h3>
-                            <p>Abre un chat con un amigo y tus mensajes se actualizaran al instante.</p>
+                            <p class="chat-kicker">Mensajería en tiempo real</p>
+                            <h3>Selecciona una conversación</h3>
+                            <p>Abre un chat con un amigo y tus mensajes se actualizarán al instante.</p>
                         </div>
                     </div>
 
@@ -404,14 +450,14 @@
                             <div class="chat-conversation-user">
                                 <img id="chatHeaderAvatar" src="" alt="Contacto" class="chat-user-avatar">
                                 <div>
-                                    <h3 id="chatHeaderName">Conversacion</h3>
+                                    <h3 id="chatHeaderName">Conversación</h3>
                                     <p id="chatHeaderMeta">Habla con tus amigos de BitBond.</p>
                                 </div>
                             </div>
                         </div>
 
                         <div id="chatMessages" class="chat-messages">
-                            <div class="chat-empty-mini">Todavia no hay mensajes.</div>
+                            <div class="chat-empty-mini">Todavía no hay mensajes.</div>
                         </div>
 
                         <form class="chat-composer" onsubmit="sendChatMessage(event)">
@@ -473,7 +519,7 @@
                     </div>
                 </div>
                 <div id="chatMiniConversationList" class="chat-mini-list">
-                    <div class="chat-empty-mini">Todavia no tienes conversaciones.</div>
+                    <div class="chat-empty-mini">Todavía no tienes conversaciones.</div>
                 </div>
             </div>
 
@@ -487,7 +533,7 @@
                     <div class="chat-mini-thread-user">
                         <img id="chatMiniThreadAvatar" src="" alt="Contacto" class="chat-mini-thread-avatar">
                         <div class="chat-mini-thread-copy">
-                            <strong id="chatMiniThreadName">Conversacion</strong>
+                            <strong id="chatMiniThreadName">Conversación</strong>
                             <span id="chatMiniThreadMeta">Habla con tus amigos.</span>
                         </div>
                     </div>
@@ -509,7 +555,7 @@
                     </div>
                 </div>
                 <div id="chatMiniMessages" class="chat-mini-messages">
-                    <div class="chat-empty-mini">Todavia no hay mensajes.</div>
+                    <div class="chat-empty-mini">Todavía no hay mensajes.</div>
                 </div>
                 <form class="chat-mini-composer" onsubmit="sendChatMiniMessage(event)">
                     <div class="chat-emoji-shell">
@@ -523,7 +569,7 @@
                         </button>
                         <div id="chatEmojiPickerMini" class="chat-emoji-picker chat-emoji-picker-mini" style="display: none;"></div>
                     </div>
-                    <input type="text" id="chatMiniMessageInput" class="chat-mini-input" placeholder="Envia un mensaje..." autocomplete="off">
+                    <input type="text" id="chatMiniMessageInput" class="chat-mini-input" placeholder="Envía un mensaje..." autocomplete="off">
                     <button type="submit" class="chat-mini-send-btn" aria-label="Enviar mensaje">
                         <svg viewBox="0 0 24 24">
                             <path d="m4 12 15-8-3 8 3 8-15-8Z"></path>
@@ -542,7 +588,7 @@
                     <h3 id="profileModalTitle">Editar perfil</h3>
                     <p class="profile-editor-subtitle">Mantén tu perfil al día para que tus publicaciones y tu cuenta se vean consistentes.</p>
                 </div>
-                <button class="close-btn" onclick="closeProfileModal()">×</button>
+                <button class="close-btn" onclick="closeProfileModal()">&times;</button>
             </div>
             <form onsubmit="handleGuardarPerfil(event)">
                 <div class="profile-editor-layout">
@@ -622,11 +668,11 @@
     <!-- Navegación Móvil Inferior -->
     <nav class="nav-bottom glass glass-text">
         <a href="javascript:void(0)" onclick="cerrarPerfilUsuario()" class="nav-bottom-item active">
-            <span>🏠</span>
+            <span>IN</span>
             <small>Inicio</small>
         </a>
         <a href="javascript:void(0)" class="nav-bottom-item" onclick="abrirBuscadorMovil()">
-            <span>🔍</span>
+            <span>BS</span>
             <small>Buscar</small>
         </a>
         <a href="javascript:void(0)" class="nav-bottom-item" onclick="openModal()">
@@ -641,13 +687,13 @@
         </a>
         <a href="javascript:void(0)" class="nav-bottom-item" onclick="openRequestsModal()">
             <div style="position: relative;">
-                <span>👥</span>
+                <span>SO</span>
                 <span id="friendBadgeMobile" class="badge" style="display: none;">0</span>
             </div>
             <small>Solicitudes</small>
         </a>
         <a href="javascript:void(0)" class="nav-bottom-item" onclick="openSettings()">
-            <span>⚙️</span>
+            <span>AJ</span>
             <small>Ajustes</small>
         </a>
     </nav>
@@ -657,7 +703,7 @@
         <div class="modal-content card"
             style="height: 100%; border-radius: 0; max-width: 100%; margin: 0; display: flex; flex-direction: column;">
             <div style="display: flex; gap: 0.8rem; align-items: center; margin-bottom: 2rem;">
-                <button class="close-btn" onclick="cerrarBuscadorMovil()" style="font-size: 1.5rem;">←</button>
+                <button class="close-btn" onclick="cerrarBuscadorMovil()" style="font-size: 1.5rem;">&times;</button>
                 <input type="text" id="mobileSearchInput" class="search-bar"
                     style="flex: 1; border-radius: 12px; padding: 0.8rem 1.2rem;" placeholder="¿A quién buscas?"
                     oninput="ejecutarBusquedaMovil(this.value)">

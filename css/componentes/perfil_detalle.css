@@ -89,14 +89,21 @@
 
 #messageProfileBtn,
 #followBtn {
-    min-width: 118px;
-    min-height: 44px;
-    border-radius: 14px;
+    min-width: 112px;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1;
+    padding: 0.5rem 1rem;
+    border-radius: 12px;
     font-weight: 700;
 }
 
 #messageProfileBtn {
     background: rgba(255, 255, 255, 0.04) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .profile-stats {

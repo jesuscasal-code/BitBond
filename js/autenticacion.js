@@ -99,7 +99,8 @@ async function handleAuth(event) {
                 puesto: "",
                 bio: "",
                 avatar: "",
-                privacidad: "publico"
+                privacidad: "publico",
+                profileUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             // En lugar de alert, abrimos la configuración de perfil
             if (window.abrirEdicionPerfil) {

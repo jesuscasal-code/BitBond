@@ -1,8 +1,9 @@
-// publicaciones.js - Logica de Posts y Comentarios
+// publicaciones.js - Lógica de Posts y Comentarios
 
 var postAuthorProfiles = {};
 var postAuthorProfileUnsubscribes = {};
 var postAuthorDirectoryUnsubscribe = null;
+var postsUnsubscribe = null;
 
 function escapePostHtml(value) {
     return String(value || "")
@@ -35,7 +36,7 @@ function getPostCommentIcon() {
 
 function renderCommentsMarkup(comments) {
     if (!comments || comments.length === 0) {
-        return '<div class="comment comment-empty">Todavia no hay comentarios. Se el primero en responder.</div>';
+        return '<div class="comment comment-empty">Todavía no hay comentarios. Sé el primero en responder.</div>';
     }
 
     return comments.map(comment => `
@@ -83,6 +84,27 @@ function ensurePostAuthorDirectoryListener() {
     });
 }
 
+function cleanupPostAuthorProfiles() {
+    Object.keys(postAuthorProfileUnsubscribes).forEach(uid => {
+        postAuthorProfileUnsubscribes[uid]();
+        delete postAuthorProfileUnsubscribes[uid];
+    });
+
+    if (postAuthorDirectoryUnsubscribe) {
+        postAuthorDirectoryUnsubscribe();
+        postAuthorDirectoryUnsubscribe = null;
+    }
+
+    postAuthorProfiles = {};
+}
+
+function cleanupPostsListener() {
+    if (postsUnsubscribe) {
+        postsUnsubscribe();
+        postsUnsubscribe = null;
+    }
+}
+
 function syncPostAuthorProfiles(postsToSync) {
     if (!db) return;
 
@@ -123,12 +145,19 @@ function buildPostCard(post, options = {}) {
     const commentsCount = comments.length;
     const isProfileView = !!options.profileView;
     const cachedProfile = postAuthorProfiles[post.uid] || {};
+    const resolvedProfile = window.getResolvedUserProfile
+        ? window.getResolvedUserProfile(
+            currentUser && post.uid === currentUser.uid ? (window.userData || cachedProfile || {}) : (cachedProfile || {}),
+            post.uid,
+            currentUser && post.uid === currentUser.uid ? currentUser.photoURL : ''
+        )
+        : (cachedProfile || {});
     const overrideAvatar = options.avatar || '';
     const overrideAuthor = options.author || '';
     const overrideRole = options.role || '';
     const liveProfileAvatar = window.resolveUserAvatar
         ? window.resolveUserAvatar(
-            currentUser && post.uid === currentUser.uid ? (window.userData || {}) : (cachedProfile || {}),
+            resolvedProfile,
             post.uid || post.author || 'user',
             currentUser && post.uid === currentUser.uid ? currentUser.photoURL : ''
         )
@@ -140,12 +169,16 @@ function buildPostCard(post, options = {}) {
         ? window.userData.puesto
         : '';
     const resolvedAvatar = overrideAvatar || liveProfileAvatar || getPostAuthorAvatarFallback(post, cachedProfile);
-    const resolvedAuthor = overrideAuthor || cachedProfile.nombre || ownAuthor || post.author;
-    const resolvedRole = overrideRole || cachedProfile.puesto || ownRole || post.puesto || post.role || 'Miembro de BitBond';
+    const resolvedAuthor = overrideAuthor || resolvedProfile.nombre || ownAuthor || post.author;
+    const resolvedRole = overrideRole || resolvedProfile.puesto || ownRole || post.puesto || post.role || 'Miembro de BitBond';
 
     let followBtnHtml = '';
-    if (!isProfileView && currentUser && post.uid !== currentUser.uid && !(window.amigos || []).includes(post.uid)) {
-        followBtnHtml = `<button class="follow-btn" onclick="enviarSolicitud('${post.uid}', '${escapePostHtml(resolvedAuthor)}', '${escapePostHtml(resolvedAvatar)}')">Seguir</button>`;
+    if (!isProfileView && currentUser && post.uid !== currentUser.uid && window.buildFriendshipButton) {
+        followBtnHtml = window.buildFriendshipButton(post.uid, {
+            compact: true,
+            name: resolvedAuthor,
+            avatar: resolvedAvatar
+        });
     }
 
     return `
@@ -167,7 +200,7 @@ function buildPostCard(post, options = {}) {
                     ${post.image ? `
                         <div class="post-image-container">
                             <img src="${escapePostHtml(post.image)}" class="post-image" alt="Imagen de la publicacion" loading="lazy" decoding="async">
-                            <div class="double-tap-heart">❤</div>
+                            <div class="double-tap-heart">&#10084;</div>
                         </div>
                     ` : ''}
                 </div>
@@ -201,14 +234,16 @@ function renderPosts() {
 
     const filteredPosts = posts.filter(post => {
         if (!currentUser) return false;
-        return post.uid === currentUser.uid || (window.amigos || []).includes(post.uid) || post.visibility === 'public';
+        return post.uid === currentUser.uid
+            || (window.areUsersFriends ? window.areUsersFriends(post.uid) : (window.amigos || []).includes(post.uid))
+            || post.visibility === 'public';
     });
 
     if (filteredPosts.length === 0) {
         container.innerHTML = `
             <div class="card feed-empty-state">
                 <p class="section-kicker">Tu feed</p>
-                <h3>Aun no hay publicaciones para mostrar</h3>
+                <h3>Aún no hay publicaciones para mostrar</h3>
                 <p>Empieza compartiendo algo o conecta con mas personas para llenar tu inicio de actividad real.</p>
                 <button class="btn btn-primary" onclick="openModal()">Crear publicacion</button>
             </div>
@@ -219,8 +254,12 @@ function renderPosts() {
     container.innerHTML = filteredPosts.map(post => buildPostCard(post)).join('');
 }
 
-if (db) {
-    db.collection("posts").onSnapshot(async snapshot => {
+function subscribeToPosts() {
+    if (!db || !currentUser) return;
+
+    cleanupPostsListener();
+
+    postsUnsubscribe = db.collection("posts").onSnapshot(async snapshot => {
         posts = snapshot.docs.map(doc => {
             const data = doc.data();
             return {
@@ -237,6 +276,10 @@ if (db) {
         if (window.renderQuickStats) window.renderQuickStats();
     }, error => {
         console.error("Error en Firestore:", error);
+        if (error && error.code === 'permission-denied') {
+            posts = [];
+            renderPosts();
+        }
     });
 }
 
@@ -244,12 +287,12 @@ if (auth) {
     auth.onAuthStateChanged(user => {
         if (user) {
             ensurePostAuthorDirectoryListener();
+            subscribeToPosts();
         } else {
-            if (postAuthorDirectoryUnsubscribe) {
-                postAuthorDirectoryUnsubscribe();
-                postAuthorDirectoryUnsubscribe = null;
-            }
-            postAuthorProfiles = {};
+            cleanupPostsListener();
+            cleanupPostAuthorProfiles();
+            posts = [];
+            renderPosts();
         }
     });
 }
@@ -362,6 +405,7 @@ window.likePost = likePost;
 window.handleDoubleTap = handleDoubleTap;
 window.buildPostCard = buildPostCard;
 window.formatPostRelativeTime = formatPostRelativeTime;
+window.getPostCommentIcon = getPostCommentIcon;
 window.toggleCommentsUI = (id, btn) => {
     let el;
     if (btn) {

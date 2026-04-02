@@ -32,6 +32,9 @@ try {
                 if (authPage) authPage.style.display = 'none';
                 if (mainApp) mainApp.style.display = 'block';
                 if (window.updateProfileUI) window.updateProfileUI();
+                if (window.renderPosts) window.renderPosts();
+                if (window.renderStories) window.renderStories();
+                if (window.refreshProductSidebar) window.refreshProductSidebar();
             } else {
                 if (window.clearCachedUserVisual) window.clearCachedUserVisual();
                 if (authPage) authPage.style.display = 'flex';

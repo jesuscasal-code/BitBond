@@ -4,6 +4,8 @@ var productChromeInitialized = false;
 var suggestedUsersCache = [];
 var DEFAULT_USER_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='60' fill='%23182234'/%3E%3Ccircle cx='60' cy='44' r='21' fill='%23f8fafc' fill-opacity='.92'/%3E%3Cpath d='M23 99c7-19 22-30 37-30s30 11 37 30' fill='%23f8fafc' fill-opacity='.92'/%3E%3C/svg%3E";
 var USER_VISUAL_CACHE_KEY = "bitbond:user-visual-cache";
+var liveUserDirectory = {};
+var liveUserDirectoryUnsubscribe = null;
 
 function preloadImage(src) {
     if (!src || src === DEFAULT_USER_AVATAR) return;
@@ -44,6 +46,57 @@ function clearCachedUserVisual() {
     } catch (error) {
         // Ignorar fallos de almacenamiento local
     }
+}
+
+function cleanupLiveUserDirectoryListener() {
+    if (liveUserDirectoryUnsubscribe) {
+        liveUserDirectoryUnsubscribe();
+        liveUserDirectoryUnsubscribe = null;
+    }
+    liveUserDirectory = {};
+}
+
+function subscribeLiveUserDirectoryListener() {
+    if (!db || !auth || !currentUser || liveUserDirectoryUnsubscribe) return;
+
+    liveUserDirectoryUnsubscribe = db.collection("usuarios").onSnapshot(snapshot => {
+        const nextDirectory = {};
+        snapshot.docs.forEach(doc => {
+            nextDirectory[doc.id] = {
+                uid: doc.id,
+                ...doc.data()
+            };
+        });
+        liveUserDirectory = nextDirectory;
+
+        if (window.renderPosts) window.renderPosts();
+        if (window.renderStories) window.renderStories();
+        if (window.renderChatConversationList) window.renderChatConversationList();
+        if (window.renderChatMiniDock) window.renderChatMiniDock();
+        if (window.rerenderSolicitudes) window.rerenderSolicitudes();
+    }, error => {
+        console.error("Error al escuchar directorio de usuarios:", error);
+    });
+}
+
+function getResolvedUserProfile(userData, uid, authPhotoURL) {
+    const liveProfile = uid && liveUserDirectory[uid] ? liveUserDirectory[uid] : {};
+    const baseProfile = userData && typeof userData === 'object' ? userData : {};
+    const mergedProfile = {
+        ...baseProfile,
+        ...liveProfile
+    };
+
+    const avatarValue = typeof mergedProfile.avatar === 'string' ? mergedProfile.avatar.trim() : '';
+    const authAvatar = typeof authPhotoURL === 'string' ? authPhotoURL.trim() : '';
+
+    return {
+        uid: uid || mergedProfile.uid || "",
+        ...mergedProfile,
+        avatar: isCustomUserAvatar(avatarValue)
+            ? avatarValue
+            : (isCustomUserAvatar(authAvatar) ? authAvatar : "")
+    };
 }
 
 function applyUserVisualState(visualState) {
@@ -160,6 +213,7 @@ function focusDesktopSearch() {
 }
 
 function openSettings() {
+    closeProfileDropdown();
     document.getElementById('settingsModal').style.display = 'flex';
     setActiveNav('settings');
 }
@@ -177,7 +231,18 @@ function toggleTheme() {
 function toggleProfileDropdown(event) {
     if (event) event.stopPropagation();
     const d = document.getElementById('profileDropdown');
-    if (d) d.classList.toggle('show');
+    const trigger = document.querySelector('.profile-dropdown-trigger');
+    if (d) {
+        const isOpen = d.classList.toggle('show');
+        if (trigger) trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+}
+
+function closeProfileDropdown() {
+    const d = document.getElementById('profileDropdown');
+    const trigger = document.querySelector('.profile-dropdown-trigger');
+    if (d) d.classList.remove('show');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
 }
 
 window.onclick = function (event) {
@@ -192,7 +257,7 @@ window.onclick = function (event) {
     }
     const d = document.getElementById('profileDropdown');
     if (d && !event.target.closest('.profile-dropdown')) {
-        d.classList.remove('show');
+        closeProfileDropdown();
     }
     if (window.handleGlobalOverlayClick) {
         window.handleGlobalOverlayClick(event);
@@ -235,7 +300,8 @@ function isCustomUserAvatar(value) {
 }
 
 function resolveUserAvatar(userData, fallbackSeed, authPhotoURL) {
-    const avatarValue = userData && typeof userData.avatar === 'string' ? userData.avatar.trim() : '';
+    const resolvedProfile = getResolvedUserProfile(userData, fallbackSeed, authPhotoURL);
+    const avatarValue = typeof resolvedProfile.avatar === 'string' ? resolvedProfile.avatar.trim() : '';
     const authAvatar = typeof authPhotoURL === 'string' ? authPhotoURL.trim() : '';
 
     if (isCustomUserAvatar(avatarValue)) return avatarValue;
@@ -498,6 +564,16 @@ document.addEventListener('DOMContentLoaded', () => {
     setActiveNav('home');
 });
 
+if (auth) {
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            subscribeLiveUserDirectoryListener();
+        } else {
+            cleanupLiveUserDirectoryListener();
+        }
+    });
+}
+
 initializeProductChrome();
 
 // Exportar globalmente
@@ -506,6 +582,7 @@ window.openModal = openModal;
 window.closeModal = closeModal;
 window.openSettings = openSettings;
 window.closeSettings = closeSettings;
+window.closeProfileDropdown = closeProfileDropdown;
 window.toggleTheme = toggleTheme;
 window.toggleProfileDropdown = toggleProfileDropdown;
 window.handleFileSelect = handleFileSelect;
@@ -514,6 +591,7 @@ window.resolveAppSection = resolveAppSection;
 window.focusDesktopSearch = focusDesktopSearch;
 window.DEFAULT_USER_AVATAR = DEFAULT_USER_AVATAR;
 window.isCustomUserAvatar = isCustomUserAvatar;
+window.getResolvedUserProfile = getResolvedUserProfile;
 window.resolveUserAvatar = resolveUserAvatar;
 window.applyCachedUserVisual = applyCachedUserVisual;
 window.applyUserVisualState = applyUserVisualState;
