@@ -20,6 +20,7 @@ function escucharAmigos() {
         }
         // Repintar posts cuando cambia la lista de amigos
         if (window.renderPosts) window.renderPosts();
+        if (window.refreshProductSidebar) window.refreshProductSidebar();
     });
 }
 
@@ -40,6 +41,7 @@ function escucharSolicitudes() {
                 }
             });
             renderSolicitudes(snapshot);
+            if (window.renderActivityFeed) window.renderActivityFeed();
         });
 }
 
@@ -81,7 +83,9 @@ async function enviarSolicitud(targetUid, targetNombre, targetAvatar) {
         await db.collection("solicitudes").add({
             de: currentUser.uid,
             deNombre: currentUser.displayName || "Usuario",
-            deAvatar: currentUser.photoURL || "",
+            deAvatar: window.resolveUserAvatar
+                ? window.resolveUserAvatar(window.userData || {}, currentUser.uid || currentUser.email, currentUser.photoURL)
+                : "",
             para: targetUid,
             estado: "pendiente",
             fecha: firebase.firestore.FieldValue.serverTimestamp()
@@ -121,8 +125,14 @@ async function rechazarSolicitud(requestId) {
 }
 
 // UI Modals
-function openRequestsModal() { document.getElementById('requestsModal').style.display = 'flex'; }
-function closeRequestsModal() { document.getElementById('requestsModal').style.display = 'none'; }
+function openRequestsModal() {
+    document.getElementById('requestsModal').style.display = 'flex';
+    if (window.setActiveNav) window.setActiveNav('requests');
+}
+function closeRequestsModal() {
+    document.getElementById('requestsModal').style.display = 'none';
+    if (window.setActiveNav) window.setActiveNav(window.resolveAppSection ? window.resolveAppSection() : 'home');
+}
 
 // Inicializar listeners cuando el usuario cambie
 if (auth) {

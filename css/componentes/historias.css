@@ -2,8 +2,8 @@
 .stories-container {
     display: flex;
     gap: 1.2rem;
-    padding: 1rem 0;
-    margin-bottom: 2rem;
+    padding: 0.35rem 0 0.15rem;
+    margin-bottom: 0.2rem;
     overflow-x: auto;
     scrollbar-width: none;
     /* Firefox */
@@ -69,12 +69,13 @@
 }
 
 .story-item span {
-    font-size: 0.75rem;
-    color: var(--text-muted);
+    font-size: 0.78rem;
+    color: var(--text-main);
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-weight: 500;
 }
 
 /* Modal de Historias */
@@ -158,4 +159,27 @@
     z-index: 20;
     background: none;
     border: none;
+}
+
+.story-item {
+    transition: transform 0.2s ease;
+}
+
+.story-item:hover {
+    transform: translateY(-3px);
+}
+
+.story-ring {
+    box-shadow: 0 18px 28px -20px rgba(2, 6, 23, 0.8);
+}
+
+.story-item:hover .story-ring {
+    box-shadow: 0 20px 34px -20px rgba(34, 211, 238, 0.35);
+}
+
+.story-close {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.48);
 }

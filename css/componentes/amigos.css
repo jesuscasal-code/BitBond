@@ -55,3 +55,21 @@
     border: 1px solid var(--border);
     cursor: default;
 }
+
+.badge {
+    border-radius: 999px;
+    padding: 3px 7px;
+    font-size: 0.68rem;
+}
+
+.request-item {
+    background: var(--surface-soft);
+    border-radius: 16px;
+}
+
+.follow-btn {
+    padding: 0.55rem 0.9rem;
+    background: linear-gradient(135deg, var(--primary), #0891b2);
+    border-radius: 999px;
+    font-weight: 700;
+}

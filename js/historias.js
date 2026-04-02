@@ -25,6 +25,7 @@ if (db) {
 function renderStories() {
     const container = document.getElementById('storiesContainer');
     if (!container || !currentUser) return;
+    const storiesMeta = document.querySelector('.stories-shell .section-meta');
 
     // Obtener mis historias vistas de userData
     const seenStories = (window.userData && window.userData.historiasVistas) ? window.userData.historiasVistas : [];
@@ -77,7 +78,7 @@ function renderStories() {
         <div class="story-item" onclick="${myStoriesEntry ? `viewStories('${currentUser.uid}')` : 'createNewStory()'}">
             <div class="story-ring ${myStoriesEntry ? (myStoriesSeen ? 'watched' : '') : 'my-story watched'}" 
                  style="${!myStoriesEntry ? 'opacity:1; background:var(--border);' : ''}">
-                <img src="${(window.userData && window.userData.avatar) ? window.userData.avatar : (currentUser.photoURL || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + currentUser.email)}" class="avatar">
+                <img src="${window.resolveUserAvatar ? window.resolveUserAvatar(window.userData || {}, currentUser.uid || currentUser.email, currentUser.photoURL) : ''}" class="avatar" decoding="async">
                 ${!myStoriesEntry ? '<div class="story-plus-icon">+</div>' : ''}
             </div>
             <span>Tu historia</span>
@@ -88,13 +89,20 @@ function renderStories() {
     html += sortedUsers.filter(u => u.uid !== currentUser.uid).map(u => `
         <div class="story-item" onclick="viewStories('${u.uid}')">
             <div class="story-ring ${u.allSeen ? 'watched' : ''}">
-                <img src="${u.avatar}" class="avatar">
+                <img src="${window.resolveUserAvatar ? window.resolveUserAvatar(u, u.uid) : ''}" class="avatar" loading="lazy" decoding="async">
             </div>
             <span>${u.author.split(' ')[0]}</span>
         </div>
     `).join('');
 
     container.innerHTML = html;
+
+    if (storiesMeta) {
+        const activeStories = sortedUsers.reduce((total, user) => total + user.stories.length, 0);
+        storiesMeta.innerText = activeStories > 0
+            ? `${activeStories} activa${activeStories === 1 ? '' : 's'} hoy`
+            : 'Comparte la primera';
+    }
 }
 
 // Crear nueva historia (usando un input invisible)
@@ -115,7 +123,7 @@ function createNewStory() {
                 await db.collection("stories").add({
                     uid: currentUser.uid,
                     author: currentUser.displayName || "Usuario",
-                    avatar: (window.userData && window.userData.avatar) ? window.userData.avatar : (currentUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.email}`),
+                    avatar: window.resolveUserAvatar ? window.resolveUserAvatar(window.userData || {}, currentUser.uid || currentUser.email, currentUser.photoURL) : "",
                     media: base64,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     expiresAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
@@ -158,14 +166,18 @@ function showStory() {
     }
 
     // Actualizar UI del viewer
-    document.getElementById('storyImage').src = story.media;
+    const storyImage = document.getElementById('storyImage');
+    if (storyImage) {
+        storyImage.decoding = 'async';
+        storyImage.src = story.media;
+    }
 
     const header = document.querySelector('.story-header');
     if (header) {
         header.onclick = story.uid === currentUser.uid ? () => { createNewStory(); closeStoryViewer(); } : null;
         header.style.cursor = story.uid === currentUser.uid ? 'pointer' : 'default';
         header.innerHTML = `
-            <img src="${story.avatar}" class="avatar" style="width: 32px; height: 32px; border: 2px solid white;">
+            <img src="${window.resolveUserAvatar ? window.resolveUserAvatar({ avatar: story.avatar, uid: story.uid, nombre: story.author }, story.uid) : ''}" class="avatar" style="width: 32px; height: 32px; border: 2px solid white;" decoding="async">
             <div style="display:flex; flex-direction:column; gap:2px;">
                 <span style="font-weight: 600; font-size: 0.9rem;">${story.author} ${story.uid === currentUser.uid ? '(Tú)' : ''}</span>
                 <small style="opacity: 0.8; font-size: 0.75rem;">${story.createdAt ? calcularTiempo(story.createdAt) : "Ahora"}</small>

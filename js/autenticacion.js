@@ -88,8 +88,7 @@ async function handleAuth(event) {
         } else {
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
             await userCredential.user.updateProfile({
-                displayName: username,
-                photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`
+                displayName: username
             });
 
             // Guardar en Firestore con campos de búsqueda optimizados
@@ -99,7 +98,7 @@ async function handleAuth(event) {
                 email: email,
                 puesto: "",
                 bio: "",
-                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`,
+                avatar: "",
                 privacidad: "publico"
             });
             // En lugar de alert, abrimos la configuración de perfil
@@ -136,6 +135,7 @@ function handleSignOut() {
         auth.signOut().then(() => {
             window.userData = null;
             window.amigos = [];
+            if (window.clearCachedUserVisual) window.clearCachedUserVisual();
             // Recargar para limpiar estados de memoria
             window.location.reload();
         });

@@ -14,11 +14,18 @@
     padding: 2rem;
 }
 
+body.app-booting .auth-page,
+body.app-booting #mainApp {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
 .auth-container {
     display: flex;
     width: 100%;
     max-width: 1000px;
-    background: var(--bg-card);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015)), var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 30px;
     overflow: hidden;
@@ -34,7 +41,7 @@
     flex-direction: column;
     justify-content: center;
     padding: 3rem;
-    background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(236, 72, 153, 0.1));
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.22), rgba(236, 72, 153, 0.12));
 }
 
 .auth-hero::before {
@@ -45,7 +52,7 @@
     width: 100%;
     height: 100%;
     background: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1000&auto=format&fit=crop') center/cover;
-    opacity: 0.4;
+    opacity: 0.32;
     z-index: -1;
 }
 
@@ -89,8 +96,8 @@
     width: 100%;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border);
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
+    padding: 1rem 1.15rem;
+    border-radius: 16px;
     color: white;
     font-size: 1rem;
     transition: all 0.3s;

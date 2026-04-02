@@ -24,13 +24,16 @@ try {
 
         auth.onAuthStateChanged(user => {
             currentUser = user;
+            document.body.classList.remove('app-booting');
             const authPage = document.getElementById('authPage');
             const mainApp = document.getElementById('mainApp');
             if (user) {
+                if (window.applyCachedUserVisual) window.applyCachedUserVisual(user);
                 if (authPage) authPage.style.display = 'none';
                 if (mainApp) mainApp.style.display = 'block';
                 if (window.updateProfileUI) window.updateProfileUI();
             } else {
+                if (window.clearCachedUserVisual) window.clearCachedUserVisual();
                 if (authPage) authPage.style.display = 'flex';
                 if (mainApp) mainApp.style.display = 'none';
             }

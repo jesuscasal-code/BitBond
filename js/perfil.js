@@ -9,7 +9,19 @@ if (auth) {
             db.collection("usuarios").doc(user.uid).onSnapshot(doc => {
                 if (doc.exists) {
                     window.userData = doc.data();
+                    if (window.writeCachedUserVisual && currentUser) {
+                        const resolvedAvatar = window.resolveUserAvatar
+                            ? window.resolveUserAvatar(window.userData, currentUser.uid || currentUser.email, currentUser.photoURL)
+                            : (window.userData.avatar || currentUser.photoURL || window.DEFAULT_USER_AVATAR || "");
+                        window.writeCachedUserVisual({
+                            uid: currentUser.uid,
+                            nombre: window.userData.nombre || currentUser.displayName || "Usuario",
+                            puesto: window.userData.puesto || "Miembro de BitBond",
+                            avatar: resolvedAvatar
+                        });
+                    }
                     actualizarUIPerfil();
+                    if (window.refreshProductSidebar) window.refreshProductSidebar();
                     // Refrescar historias para actualizar el estado de 'visto'
                     if (window.renderStories) window.renderStories();
                 }
@@ -20,6 +32,18 @@ if (auth) {
 
 function actualizarUIPerfil() {
     if (!window.userData || !currentUser) return;
+    const resolvedAvatar = window.resolveUserAvatar
+        ? window.resolveUserAvatar(window.userData, currentUser.uid || currentUser.email, currentUser.photoURL)
+        : (window.userData.avatar || currentUser.photoURL || "");
+
+    if (window.applyUserVisualState) {
+        window.applyUserVisualState({
+            uid: currentUser.uid,
+            nombre: window.userData.nombre || currentUser.displayName || "Usuario",
+            puesto: window.userData.puesto || "Miembro de BitBond",
+            avatar: resolvedAvatar
+        });
+    }
 
     // Actualizar datos en la barra lateral
     document.querySelectorAll('.profile-preview h3').forEach(el => {
@@ -29,13 +53,13 @@ function actualizarUIPerfil() {
         el.innerText = window.userData.puesto || "Miembro de BitBond";
     });
     document.querySelectorAll('.profile-preview img').forEach(el => {
-        el.src = window.userData.avatar || currentUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(currentUser.email)}`;
+        el.src = resolvedAvatar;
     });
 
     // Actualizar avatar en la nav bar
     const navAvatar = document.querySelector('nav .avatar');
     if (navAvatar) {
-        navAvatar.src = window.userData.avatar || currentUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(currentUser.email)}`;
+        navAvatar.src = resolvedAvatar;
     }
 
     // Forzar repintado de posts para actualizar roles si es necesario
@@ -47,48 +71,46 @@ function abrirEdicionPerfil() {
     const modal = document.getElementById('profileModal');
     const title = document.getElementById('profileModalTitle');
     if (modal) {
-        title.innerText = "Info Cuenta";
+        title.innerText = "Editar perfil";
         // Rellenar campos
+        const cropperContainer = document.getElementById('cropperContainer');
+        if (cropperContainer) cropperContainer.style.display = 'none';
+        const preview = document.getElementById('avatarPreview');
+
         if (window.userData) {
             document.getElementById('userJob').value = window.userData.puesto || "";
             document.getElementById('userBio').value = window.userData.bio || "";
 
-            // Reset personalización
-            const persSection = document.getElementById('personalizacionSection');
-            if (persSection) persSection.style.display = 'none';
-
-            const sectionIA = document.getElementById('sectionIA');
-            if (sectionIA) sectionIA.style.display = 'none';
-
-            const sectionPhoto = document.getElementById('sectionPhoto');
-            if (sectionPhoto) sectionPhoto.style.display = 'none';
-
-            const btnIA = document.getElementById('btnModeIA');
-            if (btnIA) btnIA.classList.remove('active');
-
-            const btnPhoto = document.getElementById('btnModePhoto');
-            if (btnPhoto) btnPhoto.classList.remove('active');
-
-            document.getElementById('cropperContainer').style.display = 'none';
-
             // Preview actual
-            const preview = document.getElementById('avatarPreview');
-            preview.src = window.userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(currentUser.email)}`;
-
-            // Set active gender btn
-            const currentGender = window.userData.gender || 'male';
-            window.currentGender = currentGender;
-            document.querySelectorAll('.gender-btn').forEach(btn => {
-                if (btn.classList.contains('male') && currentGender === 'male') btn.classList.add('active');
-                else if (btn.classList.contains('female') && currentGender === 'female') btn.classList.add('active');
-                else btn.classList.remove('active');
-            });
+            if (preview) {
+                preview.src = window.resolveUserAvatar
+                    ? window.resolveUserAvatar(window.userData, currentUser.uid || currentUser.email, currentUser.photoURL)
+                    : (window.userData.avatar || currentUser.photoURL || "");
+            }
+        } else {
+            document.getElementById('userJob').value = "";
+            document.getElementById('userBio').value = "";
+            if (preview) preview.src = window.DEFAULT_USER_AVATAR || "";
         }
+
+        const editorName = document.getElementById('profileEditorName');
+        const editorEmail = document.getElementById('profileEditorEmail');
+        if (editorName) editorName.innerText = (window.userData && window.userData.nombre) || currentUser.displayName || "Usuario";
+        if (editorEmail) editorEmail.innerText = currentUser.email || "Sin correo";
+
         modal.style.display = 'flex';
     }
 }
 
 function closeProfileModal() {
+    const cropperContainer = document.getElementById('cropperContainer');
+    const imageInput = document.getElementById('profileImageInput');
+    if (cropperContainer) cropperContainer.style.display = 'none';
+    if (imageInput) imageInput.value = '';
+    if (profileCropper) {
+        profileCropper.destroy();
+        profileCropper = null;
+    }
     document.getElementById('profileModal').style.display = 'none';
 }
 
@@ -100,6 +122,7 @@ async function handleGuardarPerfil(event) {
     const bio = document.getElementById('userBio').value;
     const btn = document.getElementById('saveProfileBtn');
     const finalAvatar = document.getElementById('avatarPreview').src;
+    const normalizedAvatar = window.isCustomUserAvatar && window.isCustomUserAvatar(finalAvatar) ? finalAvatar : "";
 
     try {
         btn.disabled = true;
@@ -109,16 +132,19 @@ async function handleGuardarPerfil(event) {
             nombre: currentUser.displayName,
             nombreLower: (currentUser.displayName || "").toLowerCase(),
             email: currentUser.email,
-            avatar: finalAvatar || currentUser.photoURL,
+            avatar: normalizedAvatar,
             puesto: puesto,
             puestoLower: puesto.toLowerCase(),
             bio: bio,
-            gender: window.currentGender || 'male',
             amigos: window.userData ? (window.userData.amigos || []) : []
         }, { merge: true });
 
         // Actualizar avatar localmente si es posible
-        if (window.userData) window.userData.avatar = finalAvatar;
+        if (window.userData) {
+            window.userData.avatar = normalizedAvatar;
+            window.userData.puesto = puesto;
+            window.userData.bio = bio;
+        }
         actualizarUIPerfil();
 
         closeProfileModal();
@@ -127,94 +153,16 @@ async function handleGuardarPerfil(event) {
         alert("Error al guardar: " + e.message);
     } finally {
         btn.disabled = false;
-        btn.innerText = "Guardar Perfil";
+        btn.innerText = "Guardar cambios";
     }
 }
 
-function abrirModalPersonalizar() {
-    abrirEdicionPerfil();
-    const section = document.getElementById('personalizacionSection');
-    if (section) section.style.display = 'flex';
-}
-
-// Lógica de Personalización de Perfil
 let profileCropper;
-window.currentGender = 'human';
-
-function togglePersonalizacion() {
-    const section = document.getElementById('personalizacionSection');
-    if (section.style.display === 'none') {
-        section.style.display = 'flex';
-        // Ocultar subsecciones por defecto hasta que se elija modo
-        document.getElementById('sectionIA').style.display = 'none';
-        document.getElementById('sectionPhoto').style.display = 'none';
-        document.getElementById('btnModeIA').classList.remove('active');
-        document.getElementById('btnModePhoto').classList.remove('active');
-
-        // Inicializar vista previa con avatar actual
-        const preview = document.getElementById('avatarPreview');
-        if (window.userData && window.userData.avatar) {
-            preview.src = window.userData.avatar;
-        } else {
-            preview.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(currentUser.email)}`;
-        }
-    } else {
-        section.style.display = 'none';
-    }
-}
-
-function setGender(gender, el) {
-    window.currentGender = gender;
-
-    // UI buttons logic
-    document.querySelectorAll('.gender-btn').forEach(btn => btn.classList.remove('active'));
-    el.classList.add('active');
-}
-
-function setCustomizationMode(mode) {
-    const sectionIA = document.getElementById('sectionIA');
-    const sectionPhoto = document.getElementById('sectionPhoto');
-    const btnIA = document.getElementById('btnModeIA');
-    const btnPhoto = document.getElementById('btnModePhoto');
-
-    if (mode === 'ia') {
-        sectionIA.style.display = 'flex';
-        sectionPhoto.style.display = 'none';
-        btnIA.classList.add('active');
-        btnPhoto.classList.remove('active');
-        document.getElementById('avatarPreviewContainer').style.display = 'flex';
-    } else {
-        sectionIA.style.display = 'none';
-        sectionPhoto.style.display = 'flex';
-        btnIA.classList.remove('active');
-        btnPhoto.classList.add('active');
-    }
-}
-
-function generarAvatarAleatorio() {
+function resetProfileAvatar() {
     const preview = document.getElementById('avatarPreview');
     if (!preview) return;
 
-    const randomSeed = Math.random().toString(36).substring(2, 10);
-    const baseUrl = "https://api.dicebear.com/7.x/avataaars/svg";
-
-    // Simplificar parámetros para maximizar compatibilidad
-    let params = `seed=${randomSeed}`;
-    if (window.currentGender === 'male') {
-        params += "&top[]=shortHair,shortCurly,shortFlat,shaggyMullet,shaggy";
-    } else {
-        params += "&top[]=longHair,bob,curvy,straight01,straight02";
-    }
-
-    const finalUrl = `${baseUrl}?${params}`;
-
-    // Forzar recarga si la imagen falla
-    preview.onerror = () => {
-        console.warn("Fallo al cargar avatar, intentando con seed simple...");
-        preview.src = `${baseUrl}?seed=${randomSeed}`;
-    };
-
-    preview.src = finalUrl;
+    preview.src = window.DEFAULT_USER_AVATAR || "";
 }
 
 function handleProfilePhotoSelect(event) {
@@ -227,7 +175,6 @@ function handleProfilePhotoSelect(event) {
         cropperImg.src = e.target.result;
 
         document.getElementById('cropperContainer').style.display = 'flex';
-        document.getElementById('avatarPreviewContainer').style.display = 'none'; // Ocultar vista previa al recortar
 
         if (profileCropper) profileCropper.destroy();
 
@@ -258,7 +205,6 @@ function applyCrop() {
 
     document.getElementById('avatarPreview').src = canvas.toDataURL('image/jpeg');
     document.getElementById('cropperContainer').style.display = 'none';
-    document.getElementById('avatarPreviewContainer').style.display = 'flex'; // Mostrar de nuevo
     profileCropper.destroy();
     profileCropper = null;
 }
@@ -323,13 +269,17 @@ function renderResultados(docs, container) {
     } else {
         container.innerHTML = docs.map(doc => {
             const u = doc.data();
+            const fallbackAvatar = window.resolveUserAvatar
+                ? window.resolveUserAvatar(u, doc.id)
+                : "";
+            const avatarUrl = fallbackAvatar;
             // No mostrarse a sí mismo
             if (doc.id === currentUser.uid) return '';
 
             return `
                 <div class="search-result-item" onclick="verPerfilUsuario('${doc.id}')">
                     <div class="avatar-container-search" style="position: relative;">
-                        <img src="${u.avatar}" class="avatar" style="width: 42px; height: 42px; border: 2px solid var(--border); object-fit: cover;">
+                        <img src="${avatarUrl}" class="avatar" style="width: 42px; height: 42px; border: 2px solid var(--border); object-fit: cover;" onerror="this.onerror=null;this.src='${fallbackAvatar}';">
                         <div class="online-indicator"></div>
                     </div>
                     <div class="search-result-info">
@@ -375,9 +325,12 @@ async function verPerfilUsuario(uid) {
         // UI: Mostrar sección perfil, ocultar resto
         document.getElementById('mainFeed').style.display = 'none';
         document.getElementById('profileView').style.display = 'flex';
+        if (window.setActiveNav) window.setActiveNav('profile');
 
         // Rellenar datos
-        document.getElementById('viewedProfileAvatar').src = u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(u.email)}`;
+        document.getElementById('viewedProfileAvatar').src = window.resolveUserAvatar
+            ? window.resolveUserAvatar(u, uid)
+            : "";
         document.getElementById('viewedProfileName').innerText = u.nombre || "Usuario";
         document.getElementById('viewedProfileJob').innerText = u.puesto || "Miembro de BitBond";
         document.getElementById('viewedProfileBio').innerText = u.bio || "Sin biografía.";
@@ -394,17 +347,30 @@ async function verPerfilUsuario(uid) {
 
         // Botón Seguir
         const followBtn = document.getElementById('followBtn');
+        const messageBtn = document.getElementById('messageProfileBtn');
         if (uid === currentUser.uid) {
             followBtn.style.display = 'none';
+            if (messageBtn) messageBtn.style.display = 'none';
         } else {
             followBtn.style.display = 'block';
             const soyAmigo = (window.amigos || []).includes(uid);
             followBtn.innerText = soyAmigo ? "Amigos" : "Seguir";
             followBtn.onclick = () => {
                 if (!soyAmigo && window.enviarSolicitud) {
-                    window.enviarSolicitud(uid, u.nombre, u.avatar);
+                    window.enviarSolicitud(uid, u.nombre, window.resolveUserAvatar ? window.resolveUserAvatar(u, uid) : "");
                 }
             };
+
+            if (messageBtn) {
+                messageBtn.style.display = soyAmigo ? 'inline-flex' : 'none';
+                messageBtn.onclick = () => {
+                    if (window.openChatEntryPoint) {
+                        window.openChatEntryPoint(uid);
+                    } else if (window.openChatModal) {
+                        window.openChatModal(uid);
+                    }
+                };
+            }
         }
 
         // Cargar posts del usuario
@@ -482,13 +448,16 @@ function renderUserList(docs, container) {
         return;
     }
 
-    container.innerHTML = docs.map(doc => {
-        const u = doc.data();
-        return `
-            <div class="search-result-item" onclick="verPerfilUsuario('${doc.id}'); closeUserListModal();">
-                <img src="${u.avatar}" class="avatar" style="width: 40px; height: 40px;">
-                <div class="search-result-info">
-                    <h4>${u.nombre}</h4>
+        container.innerHTML = docs.map(doc => {
+            const u = doc.data();
+            const avatarUrl = window.resolveUserAvatar
+                ? window.resolveUserAvatar(u, doc.id)
+                : "";
+            return `
+                <div class="search-result-item" onclick="verPerfilUsuario('${doc.id}'); closeUserListModal();">
+                    <img src="${avatarUrl}" class="avatar" style="width: 40px; height: 40px;">
+                    <div class="search-result-info">
+                        <h4>${u.nombre}</h4>
                     <p>${u.puesto || 'Miembro'}</p>
                 </div>
             </div>
@@ -503,6 +472,7 @@ function closeUserListModal() {
 function cerrarPerfilUsuario() {
     document.getElementById('profileView').style.display = 'none';
     document.getElementById('mainFeed').style.display = 'flex';
+    if (window.setActiveNav) window.setActiveNav('home');
 }
 
 // Cargar posts del usuario
@@ -543,6 +513,8 @@ async function renderPostsUsuario(uid) {
                     return;
                 }
 
+                const profileAvatar = document.getElementById('viewedProfileAvatar')?.src || '';
+
                 container.innerHTML = filteredPosts.map(p => {
                     const likedBy = p.likedBy || [];
                     const isLiked = currentUser && likedBy.includes(currentUser.uid);
@@ -560,7 +532,7 @@ async function renderPostsUsuario(uid) {
                     return `
                         <div class="card post" data-post-id="${p.id}" style="margin-top: 1rem;">
                             <div class="post-header">
-                                <img src="${p.avatar}" class="avatar" style="width:40px; height:40px;">
+                                <img src="${profileAvatar || p.avatar}" class="avatar" style="width:40px; height:40px;">
                                 <div class="post-info">
                                     <h4 style="font-weight: 600;">${p.author}</h4>
                                     <small style="color: var(--text-muted);">${p.createdAt ? new Date(p.createdAt.toDate()).toLocaleString() : 'Recién publicado'}</small>
@@ -615,6 +587,7 @@ window.addEventListener('click', (e) => {
 // Visibilidad dinámica de filtros
 function showSearchFilters() {
     document.getElementById('searchContainer').classList.add('active');
+    if (window.setActiveNav) window.setActiveNav('search');
 }
 
 function hideSearchFilters() {
@@ -625,6 +598,7 @@ function hideSearchFilters() {
         // Solo ocultar si no hay búsqueda activa ni filtro seleccionado
         if (!query.trim() && !job && !document.activeElement.closest('#searchFilterJob')) {
             document.getElementById('searchContainer').classList.remove('active');
+            if (window.setActiveNav) window.setActiveNav(window.resolveAppSection ? window.resolveAppSection() : 'home');
         }
     }, 200);
 }
@@ -636,10 +610,12 @@ function abrirBuscadorMovil() {
     document.getElementById('mobileSearchModal').style.display = 'flex';
     document.getElementById('mobileSearchInput').focus();
     renderFiltrosMovil();
+    if (window.setActiveNav) window.setActiveNav('search');
 }
 
 function cerrarBuscadorMovil() {
     document.getElementById('mobileSearchModal').style.display = 'none';
+    if (window.setActiveNav) window.setActiveNav(window.resolveAppSection ? window.resolveAppSection() : 'home');
 }
 
 function renderFiltrosMovil() {
@@ -716,10 +692,7 @@ window.abrirModalSiguiendo = abrirModalSiguiendo;
 window.closeUserListModal = closeUserListModal;
 window.cerrarPerfilUsuario = cerrarPerfilUsuario;
 window.abrirEdicionPerfil = abrirEdicionPerfil;
-window.togglePersonalizacion = togglePersonalizacion;
-window.setGender = setGender;
-window.setCustomizationMode = setCustomizationMode;
-window.generarAvatarAleatorio = generarAvatarAleatorio;
+window.resetProfileAvatar = resetProfileAvatar;
 window.handleProfilePhotoSelect = handleProfilePhotoSelect;
 window.applyCrop = applyCrop;
 window.handleGuardarPerfil = handleGuardarPerfil;
@@ -728,7 +701,6 @@ window.ejecutarBusqueda = ejecutarBusqueda;
 window.verPerfilUsuario = verPerfilUsuario;
 window.showSearchFilters = showSearchFilters;
 window.hideSearchFilters = hideSearchFilters;
-window.abrirModalPersonalizar = abrirModalPersonalizar;
 window.abrirBuscadorMovil = abrirBuscadorMovil;
 window.cerrarBuscadorMovil = cerrarBuscadorMovil;
 window.toggleFiltroMovil = toggleFiltroMovil;

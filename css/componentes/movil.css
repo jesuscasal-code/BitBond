@@ -46,6 +46,20 @@
     color: var(--primary);
 }
 
+.nav-bottom-item {
+    border-radius: 16px;
+    min-height: 52px;
+}
+
+.nav-bottom-item.active {
+    background: rgba(34, 211, 238, 0.08);
+}
+
+.nav-bottom-item.active small,
+.nav-bottom-item.active span {
+    color: var(--primary);
+}
+
 .publish-btn-mobile {
     font-size: 1.8rem;
     background: linear-gradient(135deg, var(--primary), var(--accent));
