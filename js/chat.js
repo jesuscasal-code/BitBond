@@ -42,18 +42,28 @@ function shouldUseMobileChatFlow() {
 
 function setChatMobileView(mode) {
     const modal = document.getElementById('chatModal');
+    const sidebar = modal ? modal.querySelector('.chat-sidebar') : null;
+    const main = modal ? modal.querySelector('.chat-main') : null;
     if (!modal) return;
 
     const useMobileFlow = shouldUseMobileChatFlow();
     modal.classList.toggle('chat-mobile-flow', useMobileFlow);
     modal.classList.remove('chat-mobile-list-active', 'chat-mobile-thread-active');
 
-    if (!useMobileFlow) return;
+    if (!useMobileFlow) {
+        if (sidebar) sidebar.style.display = '';
+        if (main) main.style.display = '';
+        return;
+    }
 
     if (mode === 'thread') {
         modal.classList.add('chat-mobile-thread-active');
+        if (sidebar) sidebar.style.display = 'none';
+        if (main) main.style.display = 'flex';
     } else {
         modal.classList.add('chat-mobile-list-active');
+        if (sidebar) sidebar.style.display = 'flex';
+        if (main) main.style.display = 'none';
     }
 }
 
