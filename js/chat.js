@@ -14,6 +14,7 @@ var chatCurrentMessages = [];
 var chatLastReadReceiptKey = "";
 var chatSuppressConversationOpenUntil = 0;
 var chatLastMobileBackActionAt = 0;
+var chatLastMobileBackTriggerAt = 0;
 var chatConversationListTouchResetTimeout = null;
 
 var CHAT_EMOJI_OPTIONS = [
@@ -106,6 +107,13 @@ function temporarilyDisableMobileConversationListTouches(durationMs) {
         if (list) list.style.pointerEvents = '';
         chatConversationListTouchResetTimeout = null;
     }, Math.max(0, durationMs || 0));
+}
+
+function blurActiveChatElement() {
+    const activeElement = document.activeElement;
+    if (activeElement && typeof activeElement.blur === 'function') {
+        activeElement.blur();
+    }
 }
 
 function stopChatMiniEvent(event) {
@@ -598,12 +606,38 @@ function backToChatConversationList(event) {
 
     stopChatMiniEvent(event);
     closeChatEmojiPickers();
+    blurActiveChatElement();
+    chatSelectedFriendUid = null;
+    chatSelectedConversationId = null;
+    cleanupChatMessagesListener();
     suppressMobileChatConversationOpen(900);
     setChatMobileView('list');
     temporarilyDisableMobileConversationListTouches(650);
+    renderChatConversationList();
+}
 
-    const searchInput = document.getElementById('chatSearchInput');
-    if (searchInput) searchInput.focus();
+function handleChatMobileBackButton(event) {
+    const now = Date.now();
+    if (now - chatLastMobileBackTriggerAt < 400) {
+        stopChatMiniEvent(event);
+        return;
+    }
+
+    chatLastMobileBackTriggerAt = now;
+    if (event && event.type === 'touchstart' && typeof event.preventDefault === 'function') {
+        event.preventDefault();
+    }
+
+    backToChatConversationList(event);
+}
+
+function bindChatMobileBackButton() {
+    const button = document.getElementById('chatMobileBackBtn');
+    if (!button || button.dataset.bound === 'true') return;
+
+    button.dataset.bound = 'true';
+    button.addEventListener('touchstart', handleChatMobileBackButton, { passive: false });
+    button.addEventListener('click', handleChatMobileBackButton);
 }
 
 function updateChatMiniHeader(friendUid) {
@@ -1228,6 +1262,7 @@ window.addEventListener('resize', () => {
 });
 
 ensureChatEmojiPickersRendered();
+bindChatMobileBackButton();
 
 window.openChatModal = openChatModal;
 window.closeChatModal = closeChatModal;
