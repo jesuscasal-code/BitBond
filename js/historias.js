@@ -124,10 +124,16 @@ function renderStories() {
 function createNewStory() {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/*';
+    input.accept = '.png,.jpg,.jpeg,.gif,.webp,.bmp';
     input.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+
+        if (window.isAllowedImageFile && !window.isAllowedImageFile(file)) {
+            if (e && e.target) e.target.value = '';
+            alert('Solo se permiten imagenes PNG, JPG, JPEG, GIF, WEBP o BMP.');
+            return;
+        }
 
         // Comprimir/Convertir a base64 para demo (en prod usar storage)
         const reader = new FileReader();

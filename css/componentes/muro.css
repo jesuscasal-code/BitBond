@@ -92,6 +92,14 @@
     justify-content: space-between;
 }
 
+.post-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.65rem;
+    flex-shrink: 0;
+}
+
 .post-author-block {
     display: flex;
     align-items: center;
@@ -112,6 +120,29 @@
 .post-meta {
     color: var(--text-muted);
     font-size: 0.82rem;
+}
+
+.post-visibility-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.post-visibility-badge.is-public {
+    color: #8ef0d1;
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.post-visibility-badge.is-friends {
+    color: #ffd48a;
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.22);
 }
 
 .avatar {
@@ -146,6 +177,10 @@
     padding-top: 1.1rem;
 }
 
+.post-actions-spacer {
+    flex: 1 1 auto;
+}
+
 .action-btn {
     background: transparent;
     border: 1px solid var(--border);
@@ -167,6 +202,32 @@
 
 .action-btn.active {
     color: var(--accent);
+}
+
+.post-delete-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.post-delete-btn:hover {
+    color: #ff8e8e;
+    background: rgba(255, 107, 107, 0.12);
+    border-color: rgba(255, 107, 107, 0.28);
+    transform: translateY(-1px);
+}
+
+.post-delete-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 .post-card .post-header h4,
@@ -373,4 +434,19 @@
 
 .comment-submit-btn {
     min-width: 96px;
+}
+
+@media (max-width: 640px) {
+    .post-header-split {
+        align-items: flex-start;
+    }
+
+    .post-header-actions {
+        margin-left: auto;
+    }
+
+    .post-delete-btn {
+        width: 36px;
+        height: 36px;
+    }
 }

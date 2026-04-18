@@ -336,38 +336,36 @@
 
     <!-- Modales -->
     <div id="postModal" class="modal-overlay">
-        <div class="modal-content card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div class="modal-content card post-modal-content">
+            <div class="post-modal-header">
                 <h3>Crear publicación</h3>
                 <button class="close-btn" onclick="closeModal()">&times;</button>
             </div>
-            <textarea id="postContent" placeholder="¿Qué quieres compartir?"></textarea>
-            <div id="imagePreviewContainer" style="display: none; margin-top: 1rem;">
-                <img id="imagePreview" src=""
-                    style="width: 100%; border-radius: 10px; max-height: 200px; object-fit: cover;">
+            <div class="post-modal-body">
+                <textarea id="postContent" placeholder="¿Qué quieres compartir?"></textarea>
+                <div id="imagePreviewContainer" class="post-image-preview-shell" style="display: none;">
+                    <div class="post-image-preview-frame">
+                        <img id="imagePreview" src="" alt="Previsualización de la imagen seleccionada">
+                    </div>
+                </div>
             </div>
-            <div
-                style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: space-between; align-items: center;">
-                <div style="display: flex; gap: 0.5rem;">
-                    <input type="file" id="imageInput" style="display: none;" onchange="handleFileSelect(event)">
-                    <button class="btn"
-                        style="background: var(--glass); border: 1px solid var(--border); color: var(--text-main);"
+            <div class="post-modal-toolbar">
+                <div class="post-modal-toolbar-left">
+                    <input type="file" id="imageInput" accept=".png,.jpg,.jpeg,.gif,.webp,.bmp" style="display: none;" onchange="handleFileSelect(event)">
+                    <button class="btn post-modal-photo-btn"
                         onclick="document.getElementById('imageInput').click()">Foto</button>
                 </div>
 
-                <div
-                    style="display: flex; align-items: center; gap: 0.5rem; background: var(--glass); padding: 0.4rem 0.8rem; border-radius: 12px; border: 1px solid var(--border);">
-                    <label for="postVisibility" style="font-size: 0.8rem; color: var(--text-muted);">Visibilidad</label>
-                    <select id="postVisibility"
-                        style="background: transparent; border: none; color: var(--text-main); font-size: 0.85rem; cursor: pointer; outline: none;">
-                        <option value="public" style="background: var(--bg-card);">Público</option>
-                        <option value="friends" style="background: var(--bg-card);">Solo Amigos</option>
+                <div class="post-modal-visibility">
+                    <label for="postVisibility">Visibilidad</label>
+                    <select id="postVisibility">
+                        <option value="public">Público</option>
+                        <option value="friends">Solo Amigos</option>
                     </select>
                 </div>
             </div>
-            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;">
-                <button class="btn" style="background: var(--glass); color: var(--text-main);"
-                    onclick="closeModal()">Cancelar</button>
+            <div class="post-modal-actions">
+                <button class="btn post-modal-cancel-btn" onclick="closeModal()">Cancelar</button>
                 <button class="btn btn-primary" id="submitBtn" onclick="submitPost()">Publicar</button>
             </div>
         </div>
@@ -399,16 +397,23 @@
     </div>
 
     <div id="requestsModal" class="modal-overlay">
-        <div class="modal-content card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h3>Solicitudes de Amistad</h3>
+        <div class="modal-content card requests-modal-content">
+            <div class="requests-modal-header">
+                <div>
+                    <h3>Solicitudes</h3>
+                </div>
                 <button class="close-btn" onclick="closeRequestsModal()">&times;</button>
             </div>
-            <div id="requestList" style="max-height: 400px; overflow-y: auto;">
-                <p style="text-align: center; color: var(--text-muted);">No tienes solicitudes pendientes.</p>
+            <div id="requestList" class="request-list">
+                <div class="requests-empty-state">
+                    <p class="requests-empty-title">No tienes solicitudes pendientes.</p>
+                    <p class="requests-empty-copy">Cuando alguien quiera conectar contigo, aparecerá aquí.</p>
+                </div>
             </div>
         </div>
     </div>
+
+    <div id="friendshipActionMenu" class="friendship-action-menu" style="display: none;"></div>
 
     <div id="chatModal" class="modal-overlay">
         <div class="modal-content card chat-modal-content">
@@ -581,18 +586,17 @@
     </div>
 
     <div id="profileModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content card profile-editor-modal" style="max-width: 520px; width: 90%;">
+        <div class="modal-content card profile-editor-modal">
             <div class="profile-editor-header">
                 <div>
-                    <p class="profile-editor-kicker">Tu perfil</p>
                     <h3 id="profileModalTitle">Editar perfil</h3>
-                    <p class="profile-editor-subtitle">Mantén tu perfil al día para que tus publicaciones y tu cuenta se vean consistentes.</p>
                 </div>
                 <button class="close-btn" onclick="closeProfileModal()">&times;</button>
             </div>
-            <form onsubmit="handleGuardarPerfil(event)">
+            <form class="profile-editor-form" onsubmit="handleGuardarPerfil(event)">
                 <div class="profile-editor-layout">
-                    <div class="profile-editor-account">
+                    <div class="profile-editor-sidebar">
+                        <div class="profile-editor-account">
                         <div class="profile-editor-avatar-wrap">
                             <img id="avatarPreview" src="" class="avatar profile-editor-avatar" alt="Foto de perfil">
                         </div>
@@ -608,18 +612,24 @@
                             <button type="button" class="btn profile-editor-secondary-btn"
                                 onclick="resetProfileAvatar()">Usar icono por defecto</button>
                         </div>
-                        <p class="profile-editor-helper">Si no subes una foto, BitBond mostrará el icono predeterminado.</p>
                     </div>
 
                     <div id="cropperContainer" class="profile-editor-cropper" style="display: none;">
+                        <div class="profile-editor-cropper-copy">
+                            <strong>Ajusta tu foto</strong>
+                        </div>
                         <div class="profile-editor-cropper-stage">
                             <img id="cropperImage" src="" style="max-width: 100%;" alt="Recorte de foto">
                         </div>
                         <button type="button" class="btn btn-primary profile-editor-crop-btn"
                             onclick="applyCrop()">Aplicar recorte</button>
                     </div>
+                    </div>
 
                     <div class="profile-editor-form-grid">
+                        <div class="profile-editor-form-copy">
+                            <h4>Datos del perfil</h4>
+                        </div>
                         <div class="profile-editor-field">
                             <label class="profile-editor-label">Rol profesional</label>
                             <select id="userJob" class="search-bar" style="width: 100%;" required>
@@ -637,15 +647,15 @@
                         <div class="profile-editor-field">
                             <label class="profile-editor-label">Sobre ti</label>
                         <textarea id="userBio" class="search-bar"
-                            style="width: 100%; height: 80px; resize: none; padding: 0.8rem;"
+                            style="width: 100%; height: 96px; resize: none; padding: 0.8rem;"
                             placeholder="Cuéntanos algo breve sobre tu perfil o intereses..."></textarea>
                         </div>
+                        <div class="profile-editor-actions">
+                            <button type="button" class="btn profile-editor-secondary-btn"
+                                onclick="closeProfileModal()">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" id="saveProfileBtn">Guardar cambios</button>
+                        </div>
                     </div>
-                </div>
-                <div class="profile-editor-actions">
-                    <button type="button" class="btn profile-editor-secondary-btn"
-                        onclick="closeProfileModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="saveProfileBtn">Guardar cambios</button>
                 </div>
             </form>
         </div>
@@ -653,9 +663,9 @@
 
     <!-- Modal de Lista de Usuarios (Seguidores/Siguiendo) -->
     <div id="userListModal" class="modal-overlay">
-        <div class="modal-content card" style="max-width: 400px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h3 id="userListModalTitle">Usuarios</h3>
+        <div class="modal-content card user-list-modal-content" style="max-width: 400px;">
+            <div class="user-list-modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 id="userListModalTitle" class="user-list-modal-title">Usuarios</h3>
                 <button class="close-btn" onclick="closeUserListModal()">&times;</button>
             </div>
             <div id="userListContent"

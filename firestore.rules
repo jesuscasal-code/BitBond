@@ -9,6 +9,21 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    function isSafePostUpdate() {
+      return isSignedIn()
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.author == resource.data.author
+        && request.resource.data.avatar == resource.data.avatar
+        && request.resource.data.content == resource.data.content
+        && request.resource.data.image == resource.data.image
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.visibility == resource.data.visibility
+        && request.resource.data.puesto == resource.data.puesto
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.likedBy is list
+        && request.resource.data.comments is list;
+    }
+
     match /usuarios/{userId} {
       allow read: if isSignedIn();
       allow create, update: if isOwner(userId);
@@ -26,7 +41,7 @@ service cloud.firestore {
         && request.resource.data.likedBy is list
         && request.resource.data.comments is list;
 
-      allow update: if isSignedIn();
+      allow update: if isSafePostUpdate();
       allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
     }
 

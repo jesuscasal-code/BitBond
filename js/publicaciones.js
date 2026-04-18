@@ -34,6 +34,24 @@ function getPostCommentIcon() {
     return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>`;
 }
 
+function getPostDeleteIcon() {
+    return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4.8A1.8 1.8 0 0 1 9.8 3h4.4A1.8 1.8 0 0 1 16 4.8V6"></path><path d="M18 6v12.2A2.8 2.8 0 0 1 15.2 21H8.8A2.8 2.8 0 0 1 6 18.2V6"></path><path d="M10 10.2v6"></path><path d="M14 10.2v6"></path></svg>`;
+}
+
+function getPostVisibilityMeta(visibility) {
+    if (visibility === 'public') {
+        return {
+            label: 'Publica',
+            className: 'is-public'
+        };
+    }
+
+    return {
+        label: 'Privada',
+        className: 'is-friends'
+    };
+}
+
 function renderCommentsMarkup(comments) {
     if (!comments || comments.length === 0) {
         return '<div class="comment comment-empty">Todavía no hay comentarios. Sé el primero en responder.</div>';
@@ -171,6 +189,8 @@ function buildPostCard(post, options = {}) {
     const resolvedAvatar = overrideAvatar || liveProfileAvatar || getPostAuthorAvatarFallback(post, cachedProfile);
     const resolvedAuthor = overrideAuthor || resolvedProfile.nombre || ownAuthor || post.author;
     const resolvedRole = overrideRole || resolvedProfile.puesto || ownRole || post.puesto || post.role || 'Miembro de BitBond';
+    const isOwnPost = !!(currentUser && post.uid === currentUser.uid);
+    const visibilityMeta = getPostVisibilityMeta(post.visibility);
 
     let followBtnHtml = '';
     if (!isProfileView && currentUser && post.uid !== currentUser.uid && window.buildFriendshipButton) {
@@ -180,6 +200,18 @@ function buildPostCard(post, options = {}) {
             avatar: resolvedAvatar
         });
     }
+
+    const deleteBtnHtml = isOwnPost ? `
+        <button
+            type="button"
+            class="post-delete-btn"
+            onclick="event.stopPropagation(); confirmDeletePost('${post.id}')"
+            aria-label="Eliminar publicación"
+            title="Eliminar publicación"
+        >
+            ${getPostDeleteIcon()}
+        </button>
+    ` : '';
 
     return `
         <div class="card post-card ${isProfileView ? 'profile-post-card' : ''}" data-post-id="${post.id}">
@@ -191,7 +223,10 @@ function buildPostCard(post, options = {}) {
                         <p class="post-meta">${escapePostHtml(resolvedRole)} · ${escapePostHtml(formatPostRelativeTime(post.createdAt))}</p>
                     </div>
                 </div>
-                ${followBtnHtml}
+                <div class="post-header-actions">
+                    ${followBtnHtml}
+                    ${deleteBtnHtml}
+                </div>
             </div>
 
             <div class="post-main-content" ondblclick="handleDoubleTap('${post.id}', event)">
@@ -215,6 +250,8 @@ function buildPostCard(post, options = {}) {
                     ${getPostCommentIcon()}
                     <span>${commentsCount}</span>
                 </button>
+                <span class="post-actions-spacer"></span>
+                <span class="post-visibility-badge ${visibilityMeta.className}">${escapePostHtml(visibilityMeta.label)}</span>
             </div>
 
             <div id="comment-section-${post.id}" class="comment-section" style="display: none;">
@@ -380,6 +417,35 @@ async function likePost(postId) {
     }
 }
 
+async function confirmDeletePost(postId) {
+    if (!currentUser || !db || !postId) return;
+
+    let post = posts.find(item => item.id === postId);
+
+    if (!post) {
+        try {
+            const doc = await db.collection("posts").doc(postId).get();
+            if (!doc.exists) return;
+            post = { id: doc.id, ...doc.data() };
+        } catch (e) {
+            console.error("Error al validar la publicación antes de eliminar:", e);
+            return;
+        }
+    }
+
+    if (!post || post.uid !== currentUser.uid) return;
+
+    const confirmed = window.confirm("¿Seguro que quieres eliminar esta publicación? Esta acción no se puede deshacer.");
+    if (!confirmed) return;
+
+    try {
+        await db.collection("posts").doc(postId).delete();
+    } catch (e) {
+        console.error("Error al eliminar la publicación:", e);
+        alert("No se pudo eliminar la publicación. Inténtalo de nuevo.");
+    }
+}
+
 function handleDoubleTap(postId, event) {
     const post = posts.find(item => item.id === postId);
     if (!post) return;
@@ -404,6 +470,7 @@ window.submitPost = submitPost;
 window.likePost = likePost;
 window.handleDoubleTap = handleDoubleTap;
 window.buildPostCard = buildPostCard;
+window.confirmDeletePost = confirmDeletePost;
 window.formatPostRelativeTime = formatPostRelativeTime;
 window.getPostCommentIcon = getPostCommentIcon;
 window.toggleCommentsUI = (id, btn) => {

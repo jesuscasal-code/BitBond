@@ -153,10 +153,14 @@ function openModal() { document.getElementById('postModal').style.display = 'fle
 function closeModal() {
     document.getElementById('postModal').style.display = 'none';
     const content = document.getElementById('postContent');
+    const imageInput = document.getElementById('imageInput');
     if (content) content.value = '';
     window.selectedImageData = null;
     const preview = document.getElementById('imagePreviewContainer');
+    const previewImg = document.getElementById('imagePreview');
     if (preview) preview.style.display = 'none';
+    if (previewImg) previewImg.src = '';
+    if (imageInput) imageInput.value = '';
 }
 
 function resolveAppSection() {
@@ -265,19 +269,50 @@ window.onclick = function (event) {
 };
 
 window.selectedImageData = null;
+
+function isAllowedImageFile(file) {
+    if (!file) return false;
+
+    const allowedMimeTypes = [
+        'image/png',
+        'image/jpeg',
+        'image/gif',
+        'image/webp',
+        'image/bmp'
+    ];
+    const allowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'];
+    const normalizedName = String(file.name || '').toLowerCase();
+
+    return allowedMimeTypes.includes(file.type) && allowedExtensions.some(ext => normalizedName.endsWith(ext));
+}
+
 function handleFileSelect(event) {
     const file = event.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = e => {
-            window.selectedImageData = e.target.result;
-            const previewContainer = document.getElementById('imagePreviewContainer');
-            const previewImg = document.getElementById('imagePreview');
-            if (previewContainer) previewContainer.style.display = 'block';
-            if (previewImg) previewImg.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+    if (!file) return;
+
+    if (!isAllowedImageFile(file)) {
+        window.selectedImageData = null;
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        const previewImg = document.getElementById('imagePreview');
+        if (previewContainer) previewContainer.style.display = 'none';
+        if (previewImg) previewImg.src = '';
+        if (event && event.target) event.target.value = '';
+        alert('Solo se permiten imagenes PNG, JPG, JPEG, GIF, WEBP o BMP.');
+        return;
     }
+
+    const reader = new FileReader();
+    reader.onload = e => {
+        window.selectedImageData = e.target.result;
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        const previewImg = document.getElementById('imagePreview');
+        if (previewContainer) previewContainer.style.display = 'block';
+        if (previewImg) {
+            previewImg.src = e.target.result;
+            previewImg.alt = file.name ? `Previsualización de ${file.name}` : 'Previsualización de la imagen seleccionada';
+        }
+    };
+    reader.readAsDataURL(file);
 }
 
 function formatCompactStat(value) {
@@ -287,6 +322,8 @@ function formatCompactStat(value) {
     }
     return `${numericValue}`;
 }
+
+window.isAllowedImageFile = isAllowedImageFile;
 
 function isGeneratedAvatar(value) {
     return typeof value === 'string' && value.includes('api.dicebear.com');

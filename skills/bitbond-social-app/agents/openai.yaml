@@ -1,0 +1,8 @@
+interface:
+  display_name: "BitBond App"
+  short_description: "Guia para mantener y ampliar BitBond"
+  default_prompt: "Use $bitbond-social-app to extend the BitBond social app without breaking its HTML, CSS, JS and Firebase architecture."
+
+policy:
+  allow_implicit_invocation: true
+

@@ -14,6 +14,7 @@ var profileFriendUids = [];
 var profileFollowerUids = [];
 var reverseFriendUids = [];
 var reverseFollowerUids = [];
+var friendshipActionMenuState = null;
 
 function uniqueUidList(items) {
     return [...new Set((items || []).filter(Boolean))];
@@ -176,7 +177,7 @@ function getFriendshipButtonConfig(uid) {
             label: 'Pendiente',
             uiState: 'pending',
             className: 'is-pending',
-            disabled: state.status === 'pending_sent'
+            disabled: false
         };
     }
 
@@ -196,6 +197,7 @@ function applyFriendshipButtonState(button, uid, metadata) {
     button.dataset.name = metadata && metadata.name ? metadata.name : '';
     button.dataset.avatar = metadata && metadata.avatar ? metadata.avatar : '';
     button.dataset.state = config.uiState;
+    button.dataset.status = getFriendshipState(uid).status;
     button.innerText = config.label;
     button.disabled = !!config.disabled;
     button.className = `btn friendship-btn ${config.className}`.trim();
@@ -208,6 +210,7 @@ function applyFriendshipButtonState(button, uid, metadata) {
 function buildFriendshipButton(uid, options) {
     const metadata = options || {};
     const config = getFriendshipButtonConfig(uid);
+    const state = getFriendshipState(uid);
     if (config.uiState === 'self') return '';
 
     const classes = `friendship-btn ${options && options.compact ? 'is-compact' : ''} ${config.className}`.trim();
@@ -219,6 +222,7 @@ function buildFriendshipButton(uid, options) {
             data-name="${escapeFriendshipHtml(metadata.name || '')}"
             data-avatar="${escapeFriendshipHtml(metadata.avatar || '')}"
             data-state="${escapeFriendshipHtml(config.uiState)}"
+            data-status="${escapeFriendshipHtml(state.status || '')}"
             ${config.disabled ? 'disabled' : ''}
             onclick="window.handleFriendshipAction(this)">
             ${escapeFriendshipHtml(config.label)}
@@ -240,7 +244,12 @@ function renderSolicitudes(snapshot) {
     if (!container) return;
 
     if (!snapshot || snapshot.empty) {
-        container.innerHTML = `<p style="text-align: center; color: var(--text-muted);">No tienes solicitudes pendientes.</p>`;
+        container.innerHTML = `
+            <div class="requests-empty-state">
+                <p class="requests-empty-title">No tienes solicitudes pendientes.</p>
+                <p class="requests-empty-copy">Cuando alguien quiera conectar contigo, aparecerá aquí.</p>
+            </div>
+        `;
         return;
     }
 
@@ -256,8 +265,9 @@ function renderSolicitudes(snapshot) {
             <div class="request-item">
                 <div class="request-info">
                     <img src="${escapeFriendshipHtml(requestAvatar)}" class="avatar request-avatar">
-                    <div>
+                    <div class="request-copy">
                         <b class="request-name">${escapeFriendshipHtml(liveProfile.nombre || req.deNombre || 'Usuario')}</b>
+                        <p class="request-meta">Quiere seguir tu perfil y conectar contigo.</p>
                     </div>
                 </div>
                 <div class="request-actions">
@@ -613,6 +623,99 @@ async function rechazarSolicitud(requestId) {
     }
 }
 
+function closeFriendshipActionMenu() {
+    const menu = document.getElementById('friendshipActionMenu');
+    if (!menu) return;
+
+    menu.style.display = 'none';
+    menu.innerHTML = '';
+    friendshipActionMenuState = null;
+}
+
+function positionFriendshipActionMenu(button) {
+    const menu = document.getElementById('friendshipActionMenu');
+    if (!menu || !button) return;
+
+    const rect = button.getBoundingClientRect();
+    const menuWidth = menu.offsetWidth || 220;
+    const left = Math.min(
+        Math.max(12, rect.right - menuWidth),
+        window.innerWidth - menuWidth - 12
+    );
+    const top = Math.min(rect.bottom + 10, window.innerHeight - menu.offsetHeight - 12);
+
+    menu.style.left = `${left + window.scrollX}px`;
+    menu.style.top = `${top + window.scrollY}px`;
+}
+
+function openPendingRequestMenu(button, uid) {
+    const menu = document.getElementById('friendshipActionMenu');
+    if (!menu || !button || !uid) return;
+
+    const pendingRequest = pendingOutgoingRequests[uid];
+    if (!pendingRequest || !pendingRequest.id) return;
+
+    if (friendshipActionMenuState && friendshipActionMenuState.uid === uid) {
+        closeFriendshipActionMenu();
+        return;
+    }
+
+    menu.innerHTML = `
+        <div class="friendship-action-menu-card">
+            <p class="friendship-action-menu-title">Solicitud enviada</p>
+            <p class="friendship-action-menu-copy">¿Quieres cancelar la solicitud pendiente?</p>
+            <button
+                type="button"
+                class="friendship-action-menu-btn danger"
+                onclick="window.cancelOutgoingRequest('${escapeFriendshipHtml(uid)}')">
+                Cancelar solicitud
+            </button>
+        </div>
+    `;
+    menu.style.display = 'block';
+    friendshipActionMenuState = { uid: uid };
+    positionFriendshipActionMenu(button);
+}
+
+async function cancelOutgoingRequest(uid) {
+    if (!currentUser || !uid) return;
+
+    const request = pendingOutgoingRequests[uid];
+    if (!request || !request.id) {
+        closeFriendshipActionMenu();
+        return;
+    }
+
+    const previousOutgoingRequests = { ...pendingOutgoingRequests };
+
+    try {
+        delete pendingOutgoingRequests[uid];
+        rebuildFriendshipState();
+        closeFriendshipActionMenu();
+
+        const duplicatesSnapshot = await db.collection("solicitudes")
+            .where("de", "==", currentUser.uid)
+            .where("para", "==", uid)
+            .where("estado", "==", "pendiente")
+            .get();
+
+        if (!duplicatesSnapshot.empty) {
+            const batch = db.batch();
+            duplicatesSnapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+            return;
+        }
+
+        await db.collection("solicitudes").doc(request.id).delete();
+    } catch (error) {
+        pendingOutgoingRequests = previousOutgoingRequests;
+        rebuildFriendshipState();
+        console.error("Error al cancelar solicitud:", error);
+    }
+}
+
 function handleFriendshipAction(buttonOrElement) {
     const button = buttonOrElement && buttonOrElement.tagName ? buttonOrElement : null;
     const uid = button ? button.dataset.uid : buttonOrElement;
@@ -620,13 +723,20 @@ function handleFriendshipAction(buttonOrElement) {
 
     const state = getFriendshipState(uid);
     if (state.status === 'none') {
+        closeFriendshipActionMenu();
         const name = button ? button.dataset.name : '';
         const avatar = button ? button.dataset.avatar : '';
         enviarSolicitud(uid, name, avatar);
         return;
     }
 
+    if (state.status === 'pending_sent') {
+        openPendingRequestMenu(button, uid);
+        return;
+    }
+
     if (state.status === 'pending_received') {
+        closeFriendshipActionMenu();
         openRequestsModal();
     }
 }
@@ -657,9 +767,37 @@ if (auth) {
     });
 }
 
+window.addEventListener('click', event => {
+    const menu = document.getElementById('friendshipActionMenu');
+    if (!menu || menu.style.display !== 'block') return;
+
+    const target = event.target;
+    const clickedButton = target && typeof target.closest === 'function'
+        ? target.closest('.friendship-btn.is-pending')
+        : null;
+    const clickedMenu = target && typeof target.closest === 'function'
+        ? target.closest('#friendshipActionMenu')
+        : null;
+
+    if (!clickedButton && !clickedMenu) {
+        closeFriendshipActionMenu();
+    }
+});
+
+window.addEventListener('resize', () => {
+    if (!friendshipActionMenuState) return;
+    const activeButton = document.querySelector(`.friendship-btn.is-pending[data-uid="${friendshipActionMenuState.uid}"]`);
+    if (!activeButton) {
+        closeFriendshipActionMenu();
+        return;
+    }
+    positionFriendshipActionMenu(activeButton);
+});
+
 window.enviarSolicitud = enviarSolicitud;
 window.aceptarSolicitud = aceptarSolicitud;
 window.rechazarSolicitud = rechazarSolicitud;
+window.cancelOutgoingRequest = cancelOutgoingRequest;
 window.openRequestsModal = openRequestsModal;
 window.closeRequestsModal = closeRequestsModal;
 window.rerenderSolicitudes = rerenderSolicitudes;
@@ -670,4 +808,5 @@ window.getFriendshipButtonConfig = getFriendshipButtonConfig;
 window.applyFriendshipButtonState = applyFriendshipButtonState;
 window.buildFriendshipButton = buildFriendshipButton;
 window.handleFriendshipAction = handleFriendshipAction;
+window.closeFriendshipActionMenu = closeFriendshipActionMenu;
 window.getUserFollowerIds = getUserFollowerIds;
