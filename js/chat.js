@@ -12,6 +12,7 @@ var chatMiniOpen = false;
 var chatMiniMode = "inbox";
 var chatCurrentMessages = [];
 var chatLastReadReceiptKey = "";
+var chatSuppressConversationOpenUntil = 0;
 
 var CHAT_EMOJI_OPTIONS = [
     "\uD83D\uDE00",
@@ -72,6 +73,15 @@ function syncChatScrollLock() {
     if (!body) return;
 
     body.classList.toggle('chat-scroll-locked', isChatModalOpen());
+}
+
+function suppressMobileChatConversationOpen(durationMs) {
+    if (!shouldUseMobileChatFlow()) return;
+    chatSuppressConversationOpenUntil = Date.now() + Math.max(0, durationMs || 0);
+}
+
+function isMobileChatConversationOpenSuppressed() {
+    return shouldUseMobileChatFlow() && Date.now() < chatSuppressConversationOpenUntil;
 }
 
 function stopChatMiniEvent(event) {
@@ -557,6 +567,7 @@ function backToChatMiniInbox(event) {
 function backToChatConversationList(event) {
     stopChatMiniEvent(event);
     closeChatEmojiPickers();
+    suppressMobileChatConversationOpen(520);
     setChatMobileView('list');
 
     const searchInput = document.getElementById('chatSearchInput');
@@ -794,6 +805,7 @@ async function subscribeToChatMessages(conversationId) {
 
 async function openChatWithUser(friendUid) {
     if (!currentUser || !friendUid) return;
+    if (isMobileChatConversationOpenSuppressed()) return;
 
     if (friendUid === currentUser.uid) {
         return;
