@@ -13,6 +13,8 @@ var chatMiniMode = "inbox";
 var chatCurrentMessages = [];
 var chatLastReadReceiptKey = "";
 var chatSuppressConversationOpenUntil = 0;
+var chatLastMobileBackActionAt = 0;
+var chatConversationListTouchResetTimeout = null;
 
 var CHAT_EMOJI_OPTIONS = [
     "\uD83D\uDE00",
@@ -82,6 +84,28 @@ function suppressMobileChatConversationOpen(durationMs) {
 
 function isMobileChatConversationOpenSuppressed() {
     return shouldUseMobileChatFlow() && Date.now() < chatSuppressConversationOpenUntil;
+}
+
+function temporarilyDisableMobileConversationListTouches(durationMs) {
+    if (!shouldUseMobileChatFlow()) return;
+
+    const sidebar = document.querySelector('#chatModal .chat-sidebar');
+    const list = document.getElementById('chatConversationList');
+    if (!sidebar && !list) return;
+
+    if (chatConversationListTouchResetTimeout) {
+        clearTimeout(chatConversationListTouchResetTimeout);
+        chatConversationListTouchResetTimeout = null;
+    }
+
+    if (sidebar) sidebar.style.pointerEvents = 'none';
+    if (list) list.style.pointerEvents = 'none';
+
+    chatConversationListTouchResetTimeout = setTimeout(() => {
+        if (sidebar) sidebar.style.pointerEvents = '';
+        if (list) list.style.pointerEvents = '';
+        chatConversationListTouchResetTimeout = null;
+    }, Math.max(0, durationMs || 0));
 }
 
 function stopChatMiniEvent(event) {
@@ -565,10 +589,18 @@ function backToChatMiniInbox(event) {
 }
 
 function backToChatConversationList(event) {
+    const now = Date.now();
+    if (now - chatLastMobileBackActionAt < 250) {
+        stopChatMiniEvent(event);
+        return;
+    }
+    chatLastMobileBackActionAt = now;
+
     stopChatMiniEvent(event);
     closeChatEmojiPickers();
-    suppressMobileChatConversationOpen(520);
+    suppressMobileChatConversationOpen(900);
     setChatMobileView('list');
+    temporarilyDisableMobileConversationListTouches(650);
 
     const searchInput = document.getElementById('chatSearchInput');
     if (searchInput) searchInput.focus();
