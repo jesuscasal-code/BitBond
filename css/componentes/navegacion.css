@@ -537,6 +537,36 @@
     background: rgba(255, 255, 255, 0.04);
 }
 
+body.light-mode .sidebar-shell {
+    background: rgba(255, 255, 255, 0.96);
+    border-color: rgba(15, 23, 42, 0.08);
+    box-shadow: 0 18px 36px -28px rgba(15, 23, 42, 0.18);
+}
+
+body.light-mode .sidebar-left:hover .sidebar-shell,
+body.light-mode .sidebar-left:focus-within .sidebar-shell {
+    border-color: rgba(15, 23, 42, 0.12);
+    box-shadow: 0 22px 40px -28px rgba(15, 23, 42, 0.2);
+}
+
+body.light-mode .sidebar-compose:hover,
+body.light-mode .sidebar-compose:focus-visible {
+    background: rgba(15, 23, 42, 0.035);
+    border-color: rgba(15, 23, 42, 0.08);
+}
+
+body.light-mode .side-nav-link:hover,
+body.light-mode .side-nav-link:focus-visible,
+body.light-mode .side-nav-link.active {
+    background: rgba(15, 23, 42, 0.04);
+    border-color: rgba(15, 23, 42, 0.08);
+    color: var(--text-main) !important;
+}
+
+body.light-mode .sidebar-foot-note {
+    border-top-color: rgba(15, 23, 42, 0.08);
+}
+
 @media (max-width: 1024px) {
     .nav-top {
         top: 8px;

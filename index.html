@@ -252,9 +252,12 @@
                             <div class="profile-name-row">
                                 <h2 id="viewedProfileName">Nombre Usuario</h2>
                                 <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-                                    <button id="messageProfileBtn" class="btn"
+                                    <button id="messageProfileBtn" class="btn" type="button" aria-label="Enviar mensaje"
                                         style="display: none; background: var(--glass); color: var(--text-main); border: 1px solid var(--border);">
-                                        Mensaje
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M3.5 7.25A2.75 2.75 0 0 1 6.25 4.5h11.5a2.75 2.75 0 0 1 2.75 2.75v9.5a2.75 2.75 0 0 1-2.75 2.75H6.25A2.75 2.75 0 0 1 3.5 16.75z"></path>
+                                            <path d="m4.5 7 6.73 5.18a1.25 1.25 0 0 0 1.54 0L19.5 7"></path>
+                                        </svg>
                                     </button>
                                     <button id="followBtn" class="btn btn-primary">Seguir</button>
                                 </div>
@@ -372,26 +375,34 @@
     </div>
 
     <div id="settingsModal" class="modal-overlay">
-        <div class="modal-content glass" style="max-width: 400px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <h3
-                    style="background: linear-gradient(45deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
-                    Ajustes</h3>
+        <div class="modal-content card settings-modal-content">
+            <div class="settings-modal-header">
+                <div class="settings-modal-heading">
+                    <span class="settings-modal-kicker">Preferencias</span>
+                    <h3>Ajustes</h3>
+                </div>
                 <button class="close-btn" onclick="closeSettings()">&times;</button>
             </div>
-            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-                <div
-                    style="display: flex; justify-content: space-between; align-items: center; background: var(--glass); padding: 1rem; border-radius: 12px;">
-                    <div>
-                        <p style="font-weight: 500; color: var(--text-main);">Modo Oscuro</p>
-                        <p style="font-size: 0.8rem; color: var(--text-muted);">Cambia la apariencia</p>
+            <div class="settings-modal-body">
+                <div class="settings-spotlight-card">
+                    <div class="settings-spotlight-copy">
+                        <p class="settings-card-title">Tu espacio, a tu manera</p>
+                        <p class="settings-card-subtitle">Gestiona la apariencia y tu sesión desde un lugar más limpio y ordenado.</p>
+                    </div>
+                </div>
+                <div class="settings-section-label">Apariencia</div>
+                <div class="settings-card-row">
+                    <div class="settings-card-copy">
+                        <p class="settings-card-title">Modo Oscuro</p>
+                        <p class="settings-card-subtitle">Cambia la apariencia de la aplicación</p>
                     </div>
                     <label class="switch">
                         <input type="checkbox" id="themeToggle" checked onchange="toggleTheme()">
                         <span class="slider round"></span>
                     </label>
                 </div>
-                <button class="btn" style="background: #ff4444; color: white;" onclick="handleSignOut()">Cerrar sesión</button>
+                <div class="settings-section-label settings-section-label-danger">Cuenta</div>
+                <button class="btn settings-logout-btn" onclick="handleSignOut()">Cerrar sesión</button>
             </div>
         </div>
     </div>
@@ -452,6 +463,11 @@
 
                     <div id="chatConversationView" class="chat-conversation-view" style="display: none;">
                         <div class="chat-conversation-header">
+                            <button type="button" class="chat-mobile-back-btn" onclick="backToChatConversationList(event)" aria-label="Volver a conversaciones">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M15 18l-6-6 6-6"></path>
+                                </svg>
+                            </button>
                             <div class="chat-conversation-user">
                                 <img id="chatHeaderAvatar" src="" alt="Contacto" class="chat-user-avatar">
                                 <div>
@@ -577,7 +593,8 @@
                     <input type="text" id="chatMiniMessageInput" class="chat-mini-input" placeholder="Envía un mensaje..." autocomplete="off">
                     <button type="submit" class="chat-mini-send-btn" aria-label="Enviar mensaje">
                         <svg viewBox="0 0 24 24">
-                            <path d="m4 12 15-8-3 8 3 8-15-8Z"></path>
+                            <path d="M4 12h12"></path>
+                            <path d="m12 6 8 6-8 6"></path>
                         </svg>
                     </button>
                 </form>
@@ -702,34 +719,29 @@
             </div>
             <small>Solicitudes</small>
         </a>
-        <a href="javascript:void(0)" class="nav-bottom-item" onclick="openSettings()">
-            <span>AJ</span>
-            <small>Ajustes</small>
-        </a>
     </nav>
 
     <!-- Modal de Búsqueda Móvil -->
     <div id="mobileSearchModal" class="modal-overlay">
-        <div class="modal-content card"
+        <div class="modal-content card mobile-search-modal-content"
             style="height: 100%; border-radius: 0; max-width: 100%; margin: 0; display: flex; flex-direction: column;">
-            <div style="display: flex; gap: 0.8rem; align-items: center; margin-bottom: 2rem;">
-                <button class="close-btn" onclick="cerrarBuscadorMovil()" style="font-size: 1.5rem;">&times;</button>
-                <input type="text" id="mobileSearchInput" class="search-bar"
+            <div class="mobile-search-modal-header">
+                <button class="close-btn mobile-search-close" onclick="cerrarBuscadorMovil()">&times;</button>
+                <input type="text" id="mobileSearchInput" class="search-bar mobile-search-input"
                     style="flex: 1; border-radius: 12px; padding: 0.8rem 1.2rem;" placeholder="¿A quién buscas?"
                     oninput="ejecutarBusquedaMovil(this.value)">
             </div>
 
-            <div style="margin-bottom: 1.5rem;">
-                <label
-                    style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Filtrar
+            <div class="mobile-search-modal-filters">
+                <label class="mobile-search-label">Filtrar
                     por puesto</label>
                 <div id="mobileJobFilters" class="mobile-filter-tags">
                     <!-- Dinámico -->
                 </div>
             </div>
 
-            <div id="mobileSearchResults" style="flex: 1; overflow-y: auto;">
-                <p style="text-align: center; color: var(--text-muted); margin-top: 3rem; font-size: 0.9rem;">Escribe
+            <div id="mobileSearchResults" class="mobile-search-results">
+                <p class="mobile-search-empty">Escribe
                     algo para empezar a buscar...</p>
             </div>
         </div>

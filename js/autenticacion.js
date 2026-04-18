@@ -99,6 +99,8 @@ async function handleAuth(event) {
                 puesto: "",
                 bio: "",
                 avatar: "",
+                amigos: [],
+                seguidores: [],
                 privacidad: "publico",
                 profileUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -122,7 +124,12 @@ async function handleAuth(event) {
         console.error("Auth Error:", error);
         let msg = "Error: " + error.message;
         if (error.code === 'auth/email-already-in-use') msg = "Este correo ya está registrado.";
-        if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') msg = "Correo o contraseña incorrectos.";
+        if (
+            error.code === 'auth/wrong-password'
+            || error.code === 'auth/user-not-found'
+            || error.code === 'auth/invalid-credential'
+            || error.code === 'auth/invalid-login-credentials'
+        ) msg = "No hemos podido validar tus credenciales. Revisa tu correo y contraseña e inténtalo de nuevo.";
         if (error.code === 'auth/invalid-email') msg = "El formato del correo no es válido.";
         showError(msg);
     } finally {

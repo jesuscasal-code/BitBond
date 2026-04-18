@@ -191,6 +191,7 @@ async function handleGuardarPerfil(event) {
             puestoLower: puesto.toLowerCase(),
             bio: bio,
             amigos: window.userData ? (window.userData.amigos || []) : [],
+            seguidores: window.userData ? (window.userData.seguidores || []) : [],
             profileUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 

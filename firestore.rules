@@ -24,9 +24,36 @@ service cloud.firestore {
         && request.resource.data.comments is list;
     }
 
+    function isSelfRemovalOnly(oldList, newList, uid) {
+      return (
+        !(oldList is list) && !(newList is list)
+      ) || (
+        oldList is list
+        && newList is list
+        && oldList.hasAll(newList)
+        && (
+          newList.size() == oldList.size()
+          || (
+            newList.size() == oldList.size() - 1
+            && uid in oldList
+            && !(uid in newList)
+          )
+        )
+      );
+    }
+
+    function isSafeRelationshipOptOut(userId) {
+      return isSignedIn()
+        && request.auth.uid != userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seguidores', 'amigos'])
+        && isSelfRemovalOnly(resource.data.seguidores, request.resource.data.seguidores, request.auth.uid)
+        && isSelfRemovalOnly(resource.data.amigos, request.resource.data.amigos, request.auth.uid);
+    }
+
     match /usuarios/{userId} {
       allow read: if isSignedIn();
-      allow create, update: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isSafeRelationshipOptOut(userId);
       allow delete: if false;
     }
 

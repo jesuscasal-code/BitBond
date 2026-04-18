@@ -445,6 +445,35 @@ select option {
     -webkit-text-fill-color: #ffffff !important;
 }
 
+body.light-mode .profile-editor-modal {
+    background:
+        radial-gradient(circle at top left, rgba(34, 211, 238, 0.08), transparent 30%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+    box-shadow: 0 28px 72px -42px rgba(15, 23, 42, 0.24);
+}
+
+body.light-mode .profile-editor-account,
+body.light-mode .profile-editor-cropper,
+body.light-mode .profile-editor-form-grid {
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.025), rgba(15, 23, 42, 0.012));
+    border-color: rgba(15, 23, 42, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+body.light-mode .profile-editor-secondary-btn:hover {
+    background: rgba(15, 23, 42, 0.05) !important;
+}
+
+body.light-mode .profile-editor-cropper-stage {
+    background: #e2e8f0;
+    border-color: rgba(15, 23, 42, 0.08);
+}
+
+body.light-mode .user-list-modal-title {
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: initial !important;
+}
+
 @media (max-width: 860px) {
     .profile-editor-layout {
         grid-template-columns: 1fr;
@@ -488,26 +517,230 @@ select option {
 }
 
 @media (max-width: 640px) {
+    #profileModal {
+        align-items: center;
+        padding: 0.55rem 0.55rem calc(0.7rem + env(safe-area-inset-bottom));
+        overflow: hidden;
+    }
+
     .profile-editor-modal {
-        padding: 1.25rem;
-        border-radius: 24px;
+        width: min(100%, 560px);
+        height: calc(100dvh - 1.1rem);
+        min-height: calc(100dvh - 1.1rem);
+        max-height: calc(100dvh - 1.1rem);
+        padding: 0.9rem;
+        border-radius: 22px;
+        display: flex;
+        flex-direction: column;
     }
 
     .profile-editor-header {
-        gap: 0.75rem;
+        gap: 0.55rem;
+        margin-bottom: 0.8rem;
+        padding-bottom: 0.7rem;
     }
 
-    .profile-editor-photo-actions,
-    .profile-editor-actions {
-        flex-direction: column;
+    .profile-editor-header h3 {
+        font-size: 1.12rem;
+    }
+
+    .profile-editor-form {
+        flex: 1;
+        min-height: 0;
+    }
+
+    .profile-editor-layout {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 0.72rem;
+        min-height: 0;
+        height: 100%;
+    }
+
+    .profile-editor-account,
+    .profile-editor-form-grid {
+        padding: 0.95rem;
+        border-radius: 20px;
+    }
+
+    .profile-editor-account {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-areas:
+            "avatar identity"
+            "actions actions";
+        align-items: center;
+        justify-content: stretch;
+        gap: 0.75rem 0.9rem;
+        text-align: left;
+    }
+
+    .profile-editor-avatar-wrap {
+        grid-area: avatar;
+    }
+
+    .profile-editor-avatar {
+        width: 84px;
+        height: 84px;
+    }
+
+    .profile-editor-identity {
+        grid-area: identity;
+        min-width: 0;
+    }
+
+    .profile-editor-identity h4 {
+        font-size: 1.16rem;
+    }
+
+    .profile-editor-identity p {
+        margin-top: 0.22rem;
+        font-size: 0.78rem;
+        line-height: 1.4;
+        word-break: break-word;
+    }
+
+    .profile-editor-form-copy {
+        padding-bottom: 0.55rem;
+    }
+
+    .profile-editor-form-copy h4 {
+        font-size: 0.98rem;
+    }
+
+    .profile-editor-field {
+        gap: 0.34rem;
+    }
+
+    .profile-editor-label {
+        font-size: 0.77rem;
+    }
+
+    .modal-content .profile-editor-form-grid .search-bar {
+        padding: 0.72rem 0.88rem;
+        font-size: 0.9rem;
+    }
+
+    #userBio {
+        min-height: 78px !important;
+        height: 78px !important;
+    }
+
+    .profile-editor-photo-actions {
+        grid-area: actions;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+        margin-top: 0;
     }
 
     .profile-editor-photo-actions .btn,
     .profile-editor-actions .btn {
         width: 100%;
+        min-height: 42px;
+        padding: 0.72rem 0.8rem;
+        font-size: 0.88rem;
+    }
+
+    .profile-editor-form-grid {
+        gap: 0.72rem;
+        min-height: 0;
+    }
+
+    .profile-editor-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+        margin-top: auto;
+        padding-top: 0.7rem;
+    }
+
+    .profile-editor-cropper {
+        padding: 0.8rem;
+        border-radius: 20px;
+        min-height: 0;
     }
 
     .profile-editor-cropper-stage {
-        height: 220px;
+        height: min(40dvh, 240px);
+    }
+
+    .profile-editor-modal.is-cropping {
+        width: min(100%, 560px);
+        height: calc(100dvh - 1.1rem);
+        max-height: calc(100dvh - 1.1rem);
+    }
+
+    .profile-editor-layout.is-cropping {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+        grid-template-areas: "cropper";
+        height: 100%;
+    }
+
+    .profile-editor-modal.is-cropping .profile-editor-account,
+    .profile-editor-modal.is-cropping .profile-editor-form-grid {
+        display: none;
+    }
+
+    .profile-editor-modal.is-cropping .profile-editor-cropper {
+        display: flex;
+        height: 100%;
+    }
+
+    .profile-editor-modal.is-cropping .profile-editor-cropper-stage {
+        flex: 1;
+        height: auto;
+        min-height: 0;
+    }
+}
+
+@media (max-width: 420px) {
+    #profileModal {
+        padding: 0.45rem 0.45rem calc(0.6rem + env(safe-area-inset-bottom));
+    }
+
+    .profile-editor-modal {
+        height: calc(100dvh - 0.9rem);
+        min-height: calc(100dvh - 0.9rem);
+        max-height: calc(100dvh - 0.9rem);
+        padding: 0.78rem;
+    }
+
+    .profile-editor-account,
+    .profile-editor-form-grid {
+        padding: 0.85rem 0.8rem;
+    }
+
+    .profile-editor-account {
+        grid-template-columns: 74px minmax(0, 1fr);
+        gap: 0.65rem 0.75rem;
+    }
+
+    .profile-editor-avatar {
+        width: 74px;
+        height: 74px;
+    }
+
+    .profile-editor-identity h4 {
+        font-size: 1.06rem;
+    }
+
+    .profile-editor-photo-actions,
+    .profile-editor-actions {
+        gap: 0.5rem;
+    }
+
+    .profile-editor-photo-actions .btn,
+    .profile-editor-actions .btn {
+        min-height: 40px;
+        padding: 0.68rem 0.7rem;
+        font-size: 0.84rem;
+    }
+
+    #userBio {
+        min-height: 72px !important;
+        height: 72px !important;
     }
 }

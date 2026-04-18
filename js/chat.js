@@ -1,4 +1,4 @@
-// chat.js - Mensajeria en tiempo real entre amigos
+// chat.js - Mensajeria en tiempo real entre usuarios
 
 var chatConversations = [];
 var chatSelectedFriendUid = null;
@@ -13,10 +13,55 @@ var chatMiniMode = "inbox";
 var chatCurrentMessages = [];
 var chatLastReadReceiptKey = "";
 
-var CHAT_EMOJI_OPTIONS = ["?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?"];
+var CHAT_EMOJI_OPTIONS = [
+    "\uD83D\uDE00",
+    "\uD83D\uDE02",
+    "\uD83D\uDE0D",
+    "\uD83D\uDE2E",
+    "\uD83D\uDE0E",
+    "\uD83D\uDE22",
+    "\uD83D\uDE21",
+    "\uD83D\uDE2D",
+    "\uD83D\uDE4C",
+    "\uD83D\uDC4D",
+    "\uD83D\uDC4E",
+    "\uD83D\uDC4F",
+    "\u2764\uFE0F",
+    "\uD83D\uDD25",
+    "\u2728",
+    "\uD83C\uDF89"
+];
 
 function shouldUseChatMiniDock() {
     return !!currentUser && window.innerWidth > 1024;
+}
+
+function shouldUseMobileChatFlow() {
+    return window.innerWidth <= 600;
+}
+
+function setChatMobileView(mode) {
+    const modal = document.getElementById('chatModal');
+    if (!modal) return;
+
+    const useMobileFlow = shouldUseMobileChatFlow();
+    modal.classList.toggle('chat-mobile-flow', useMobileFlow);
+    modal.classList.remove('chat-mobile-list-active', 'chat-mobile-thread-active');
+
+    if (!useMobileFlow) return;
+
+    if (mode === 'thread') {
+        modal.classList.add('chat-mobile-thread-active');
+    } else {
+        modal.classList.add('chat-mobile-list-active');
+    }
+}
+
+function syncChatScrollLock() {
+    const body = document.body;
+    if (!body) return;
+
+    body.classList.toggle('chat-scroll-locked', isChatModalOpen());
 }
 
 function stopChatMiniEvent(event) {
@@ -499,6 +544,15 @@ function backToChatMiniInbox(event) {
     renderChatMiniDock();
 }
 
+function backToChatConversationList(event) {
+    stopChatMiniEvent(event);
+    closeChatEmojiPickers();
+    setChatMobileView('list');
+
+    const searchInput = document.getElementById('chatSearchInput');
+    if (searchInput) searchInput.focus();
+}
+
 function updateChatMiniHeader(friendUid) {
     const profile = getChatFriendProfile(friendUid);
     const avatar = document.getElementById('chatMiniThreadAvatar');
@@ -523,6 +577,7 @@ function resetChatMiniThread() {
     chatCurrentMessages = [];
     if (messages) messages.innerHTML = '<div class="chat-empty-mini">Todavía no hay mensajes.</div>';
     if (input) input.value = '';
+    setChatMobileView('list');
 }
 
 function resetChatView() {
@@ -735,7 +790,7 @@ async function openChatWithUser(friendUid) {
     }
 
     if (!canUseChatWith(friendUid)) {
-        alert("Solo puedes chatear con usuarios que ya son tus amigos.");
+        alert("No se pudo abrir el chat con este usuario.");
         return;
     }
 
@@ -747,6 +802,7 @@ async function openChatWithUser(friendUid) {
 
     updateChatHeader(friendUid);
     renderChatConversationList();
+    setChatMobileView('thread');
     await subscribeToChatMessages(chatSelectedConversationId);
 
     const input = document.getElementById('chatMessageInput');
@@ -805,7 +861,7 @@ function subscribeToChatConversations() {
             if (window.renderQuickStats) window.renderQuickStats();
             if (window.renderActivityFeed) window.renderActivityFeed();
 
-            if (!chatSelectedFriendUid && chatConversations.length > 0 && isChatModalOpen()) {
+            if (!shouldUseMobileChatFlow() && !chatSelectedFriendUid && chatConversations.length > 0 && isChatModalOpen()) {
                 const latestConversation = getOrderedChatConversations()[0];
                 const peerUid = getChatPeerUid(latestConversation);
                 if (peerUid) openChatWithUser(peerUid);
@@ -825,6 +881,7 @@ async function openChatModal(friendUid, options = {}) {
     const dock = document.getElementById('chatMiniDock');
     const searchInput = document.getElementById('chatSearchInput');
     const autoSelectLatest = options.autoSelectLatest !== undefined ? options.autoSelectLatest : !friendUid;
+    const shouldAutoSelectLatest = shouldUseMobileChatFlow() ? !!friendUid : autoSelectLatest;
     if (!modal) return;
 
     closeChatMiniInbox();
@@ -840,6 +897,8 @@ async function openChatModal(friendUid, options = {}) {
     modal.style.display = 'flex';
     if (window.setActiveNav) window.setActiveNav('messages');
     renderChatConversationList();
+    setChatMobileView(friendUid ? 'thread' : 'list');
+    syncChatScrollLock();
     if (searchInput) searchInput.focus();
 
     if (friendUid) {
@@ -847,7 +906,7 @@ async function openChatModal(friendUid, options = {}) {
         return;
     }
 
-    if (autoSelectLatest && chatConversations.length > 0) {
+    if (shouldAutoSelectLatest && chatConversations.length > 0) {
         const latestConversation = getOrderedChatConversations()[0];
         const peerUid = latestConversation ? getChatPeerUid(latestConversation) : null;
         if (peerUid) {
@@ -871,11 +930,13 @@ function closeChatModal() {
     closeChatEmojiPickers();
     cleanupChatMessagesListener();
     resetChatView();
+    setChatMobileView('list');
     renderChatConversationList();
     if (window.setActiveNav) window.setActiveNav(window.resolveAppSection ? window.resolveAppSection() : 'home');
 
     const searchInput = document.getElementById('chatSearchInput');
     if (searchInput) searchInput.value = '';
+    syncChatScrollLock();
     renderChatMiniDock();
 }
 
@@ -1105,6 +1166,11 @@ window.addEventListener('resize', () => {
     if (window.innerWidth <= 1024) {
         closeChatMiniInbox();
     }
+
+    if (isChatModalOpen()) {
+        setChatMobileView(chatSelectedFriendUid ? 'thread' : 'list');
+    }
+    syncChatScrollLock();
 });
 
 ensureChatEmojiPickersRendered();
@@ -1124,6 +1190,7 @@ window.openChatEntryPoint = openChatEntryPoint;
 window.expandChatFromMini = expandChatFromMini;
 window.openChatMiniConversation = openChatMiniConversation;
 window.backToChatMiniInbox = backToChatMiniInbox;
+window.backToChatConversationList = backToChatConversationList;
 window.sendChatMiniMessage = sendChatMiniMessage;
 window.toggleChatEmojiPicker = toggleChatEmojiPicker;
 window.insertChatEmoji = insertChatEmoji;

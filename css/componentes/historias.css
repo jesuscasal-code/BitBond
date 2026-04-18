@@ -183,3 +183,33 @@
     border-radius: 14px;
     background: rgba(15, 23, 42, 0.48);
 }
+
+@media (max-width: 640px) {
+    .stories-container {
+        gap: 0.7rem;
+        padding: 0;
+        margin-bottom: 0;
+    }
+
+    .story-item {
+        width: 64px;
+        gap: 0.35rem;
+    }
+
+    .story-ring {
+        width: 56px;
+        height: 56px;
+    }
+
+    .story-plus-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 12px;
+    }
+
+    .story-item span {
+        font-size: 0.68rem;
+        line-height: 1.15;
+        text-align: center;
+    }
+}

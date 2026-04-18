@@ -67,6 +67,17 @@ body {
     letter-spacing: -0.01em;
 }
 
+body.chat-scroll-locked {
+    overflow: hidden;
+    height: 100dvh;
+}
+
+@media (max-width: 600px) {
+    body.chat-scroll-locked {
+        touch-action: none;
+    }
+}
+
 body::before {
     content: "";
     position: fixed;

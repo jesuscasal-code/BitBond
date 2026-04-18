@@ -94,8 +94,6 @@ function resetAmigosState() {
 function rebuildFriendshipState() {
     const nextState = {};
     const acceptedFriendUids = new Set([
-        ...(profileFriendUids || []),
-        ...(profileFollowerUids || []),
         ...(reverseFriendUids || []),
         ...(reverseFollowerUids || [])
     ]);
@@ -146,10 +144,7 @@ function areUsersFriends(uid) {
 
 function canMessageUser(uid) {
     if (!uid || !currentUser || uid === currentUser.uid) return false;
-    if (areUsersFriends(uid)) return true;
-    return typeof window.hasExistingConversationWith === 'function'
-        ? window.hasExistingConversationWith(uid)
-        : false;
+    return true;
 }
 
 function getFriendshipButtonConfig(uid) {
@@ -168,7 +163,7 @@ function getFriendshipButtonConfig(uid) {
             label: 'Amigos',
             uiState: 'friends',
             className: 'is-friends',
-            disabled: true
+            disabled: false
         };
     }
 
@@ -677,6 +672,32 @@ function openPendingRequestMenu(button, uid) {
     positionFriendshipActionMenu(button);
 }
 
+function openFriendsActionMenu(button, uid) {
+    const menu = document.getElementById('friendshipActionMenu');
+    if (!menu || !button || !uid) return;
+
+    if (friendshipActionMenuState && friendshipActionMenuState.uid === uid && friendshipActionMenuState.mode === 'friends') {
+        closeFriendshipActionMenu();
+        return;
+    }
+
+    menu.innerHTML = `
+        <div class="friendship-action-menu-card">
+            <p class="friendship-action-menu-title">Dejar de seguir</p>
+            <p class="friendship-action-menu-copy">¿Seguro que quieres dejar de seguir a este perfil? Sus publicaciones privadas dejarán de aparecer para ti.</p>
+            <button
+                type="button"
+                class="friendship-action-menu-btn danger"
+                onclick="window.removeFriendship('${escapeFriendshipHtml(uid)}')">
+                Dejar de seguir
+            </button>
+        </div>
+    `;
+    menu.style.display = 'block';
+    friendshipActionMenuState = { uid: uid, mode: 'friends' };
+    positionFriendshipActionMenu(button);
+}
+
 async function cancelOutgoingRequest(uid) {
     if (!currentUser || !uid) return;
 
@@ -716,6 +737,34 @@ async function cancelOutgoingRequest(uid) {
     }
 }
 
+async function removeFriendship(uid) {
+    if (!currentUser || !uid || uid === currentUser.uid) return;
+
+    const previousState = {
+        reverseFriendUids: [...reverseFriendUids],
+        reverseFollowerUids: [...reverseFollowerUids]
+    };
+
+    try {
+        reverseFriendUids = reverseFriendUids.filter(friendUid => friendUid !== uid);
+        reverseFollowerUids = reverseFollowerUids.filter(friendUid => friendUid !== uid);
+        rebuildFriendshipState();
+        closeFriendshipActionMenu();
+
+        const targetUserRef = db.collection("usuarios").doc(uid);
+        await targetUserRef.set({
+            seguidores: firebase.firestore.FieldValue.arrayRemove(currentUser.uid),
+            amigos: firebase.firestore.FieldValue.arrayRemove(currentUser.uid)
+        }, { merge: true });
+    } catch (error) {
+        reverseFriendUids = previousState.reverseFriendUids;
+        reverseFollowerUids = previousState.reverseFollowerUids;
+        rebuildFriendshipState();
+        console.error("Error al dejar de seguir:", error);
+        alert("No se pudo dejar de seguir a este usuario. Si acabas de cambiar las reglas, publícalas en Firebase y vuelve a intentarlo.");
+    }
+}
+
 function handleFriendshipAction(buttonOrElement) {
     const button = buttonOrElement && buttonOrElement.tagName ? buttonOrElement : null;
     const uid = button ? button.dataset.uid : buttonOrElement;
@@ -732,6 +781,11 @@ function handleFriendshipAction(buttonOrElement) {
 
     if (state.status === 'pending_sent') {
         openPendingRequestMenu(button, uid);
+        return;
+    }
+
+    if (state.status === 'friends') {
+        openFriendsActionMenu(button, uid);
         return;
     }
 
@@ -773,7 +827,7 @@ window.addEventListener('click', event => {
 
     const target = event.target;
     const clickedButton = target && typeof target.closest === 'function'
-        ? target.closest('.friendship-btn.is-pending')
+        ? target.closest('.friendship-btn.is-pending, .friendship-btn.is-friends')
         : null;
     const clickedMenu = target && typeof target.closest === 'function'
         ? target.closest('#friendshipActionMenu')
@@ -786,7 +840,7 @@ window.addEventListener('click', event => {
 
 window.addEventListener('resize', () => {
     if (!friendshipActionMenuState) return;
-    const activeButton = document.querySelector(`.friendship-btn.is-pending[data-uid="${friendshipActionMenuState.uid}"]`);
+    const activeButton = document.querySelector(`.friendship-btn[data-uid="${friendshipActionMenuState.uid}"]`);
     if (!activeButton) {
         closeFriendshipActionMenu();
         return;
@@ -798,6 +852,7 @@ window.enviarSolicitud = enviarSolicitud;
 window.aceptarSolicitud = aceptarSolicitud;
 window.rechazarSolicitud = rechazarSolicitud;
 window.cancelOutgoingRequest = cancelOutgoingRequest;
+window.removeFriendship = removeFriendship;
 window.openRequestsModal = openRequestsModal;
 window.closeRequestsModal = closeRequestsModal;
 window.rerenderSolicitudes = rerenderSolicitudes;
