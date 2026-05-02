@@ -11,11 +11,13 @@ var chatSearchTerm = "";
 var chatMiniOpen = false;
 var chatMiniMode = "inbox";
 var chatCurrentMessages = [];
+var chatUnreadMessageCountByConversation = {};
 var chatLastReadReceiptKey = "";
 var chatSuppressConversationOpenUntil = 0;
 var chatLastMobileBackActionAt = 0;
 var chatLastMobileBackTriggerAt = 0;
 var chatConversationListTouchResetTimeout = null;
+var chatShouldAutoSelectLatest = false;
 
 var CHAT_EMOJI_OPTIONS = [
     "\uD83D\uDE00",
@@ -323,6 +325,65 @@ function getChatConversationById(conversationId) {
     return chatConversations.find(conversation => conversation.id === conversationId) || null;
 }
 
+function upsertChatConversationLocally(conversation) {
+    if (!conversation || !conversation.id) return;
+
+    const existingIndex = chatConversations.findIndex(item => item.id === conversation.id);
+    if (existingIndex >= 0) {
+        chatConversations[existingIndex] = {
+            ...chatConversations[existingIndex],
+            ...conversation
+        };
+    } else {
+        chatConversations = [conversation, ...chatConversations];
+    }
+
+    renderChatConversationList();
+    renderChatMiniDock();
+    if (window.renderQuickStats) window.renderQuickStats();
+    if (window.renderActivityFeed) window.renderActivityFeed();
+}
+
+function registerLocalSentMessage(friendUid, text, messageId) {
+    if (!currentUser || !friendUid || !messageId) return;
+
+    const conversationId = getChatConversationId(currentUser.uid, friendUid);
+    const now = new Date();
+    const previewText = text.length > 110 ? text.slice(0, 107) + "..." : text;
+
+    upsertChatConversationLocally({
+        id: conversationId,
+        participants: [currentUser.uid, friendUid].sort(),
+        updatedAt: now,
+        lastMessageText: previewText,
+        lastMessageSender: currentUser.uid,
+        lastMessageId: messageId,
+        lastMessageAt: now,
+        readState: {
+            ...(getChatConversationById(conversationId)?.readState || {}),
+            [currentUser.uid]: {
+                lastReadAt: now,
+                lastReadMessageId: messageId
+            }
+        }
+    });
+
+    if (chatSelectedConversationId === conversationId) {
+        const hasMessage = chatCurrentMessages.some(message => message.id === messageId);
+        if (!hasMessage) {
+            renderChatMessages([
+                ...chatCurrentMessages,
+                {
+                    id: messageId,
+                    senderId: currentUser.uid,
+                    text: text,
+                    createdAt: now
+                }
+            ]);
+        }
+    }
+}
+
 function getChatReadState(conversation, uid) {
     if (!conversation || !conversation.readState) return {};
     return conversation.readState[uid || (currentUser && currentUser.uid)] || {};
@@ -352,6 +413,61 @@ function isConversationUnread(conversation) {
     }
 
     return !!(conversation.lastMessageText || "").trim();
+}
+
+async function countUnreadMessagesForConversation(conversation) {
+    if (!currentUser || !conversation || !conversation.id || !isConversationUnread(conversation)) return 0;
+
+    const peerUid = getChatPeerUid(conversation);
+    const readState = getChatReadState(conversation, currentUser.uid);
+    const lastReadMessageId = readState.lastReadMessageId || "";
+    const lastReadValue = getChatTimestampValue(readState.lastReadAt);
+
+    const snapshot = await db.collection("conversations")
+        .doc(conversation.id)
+        .collection("messages")
+        .orderBy("createdAt")
+        .get()
+        .catch(() => null);
+
+    if (!snapshot) return isConversationUnread(conversation) ? 1 : 0;
+
+    const messages = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+    }));
+
+    let unreadMessages = messages;
+    if (lastReadMessageId) {
+        const lastReadIndex = messages.findIndex(message => message.id === lastReadMessageId);
+        if (lastReadIndex >= 0) {
+            unreadMessages = messages.slice(lastReadIndex + 1);
+        }
+    } else if (lastReadValue) {
+        unreadMessages = messages.filter(message => getChatTimestampValue(message.createdAt) > lastReadValue);
+    }
+
+    return unreadMessages.filter(message => message.senderId === peerUid).length;
+}
+
+async function refreshUnreadMessageCounts(conversations) {
+    const nextCounts = {};
+
+    await Promise.all((conversations || []).map(async conversation => {
+        if (!isConversationUnread(conversation)) {
+            nextCounts[conversation.id] = 0;
+            return;
+        }
+
+        nextCounts[conversation.id] = await countUnreadMessagesForConversation(conversation);
+    }));
+
+    chatUnreadMessageCountByConversation = nextCounts;
+}
+
+function getConversationUnreadMessageCount(conversation) {
+    if (!conversation || !conversation.id || !isConversationUnread(conversation)) return 0;
+    return chatUnreadMessageCountByConversation[conversation.id] || 1;
 }
 
 function getChatPeerReadState(conversation) {
@@ -392,6 +508,7 @@ function buildChatConversationMarkup(conversation, options = {}) {
     const updatedLabel = formatChatTimestamp(conversation.lastMessageAt || conversation.updatedAt);
     const isActive = chatSelectedConversationId === conversation.id;
     const isUnread = isConversationUnread(conversation);
+    const unreadMessageCount = getConversationUnreadMessageCount(conversation);
 
     if (options.compact) {
         return `
@@ -425,7 +542,7 @@ function buildChatConversationMarkup(conversation, options = {}) {
                 </div>
                 <p class="chat-list-preview">${escapeChatHtml(previewText)}</p>
             </div>
-            ${isUnread ? '<span class="chat-status-pill">Nuevo</span>' : ''}
+            ${isUnread ? `<span class="chat-status-pill">${unreadMessageCount}</span>` : ''}
         </button>
     `;
 }
@@ -742,12 +859,15 @@ function buildChatMessagesMarkup(messages, options = {}) {
             ? getChatMessageDeliveryStatus(message, conversation)
             : "";
         const metaLabel = [timeLabel, statusLabel].filter(Boolean).join(' · ');
+        const statusClass = statusLabel === 'Visto'
+            ? 'is-seen'
+            : (statusLabel === 'Enviado' ? 'is-sent' : '');
 
         return `
             <div class="${options.compact ? 'chat-mini-message-row' : 'chat-message-row'} ${isMine ? 'sent' : 'received'}">
                 <div class="${options.compact ? 'chat-mini-bubble' : 'chat-bubble'} ${isMine ? 'sent' : 'received'}">
                     <p>${escapeChatHtml(message.text)}</p>
-                    <span class="${options.compact ? 'chat-mini-message-time' : 'chat-message-time'} ${statusLabel === 'Visto' ? 'is-seen' : ''}">${escapeChatHtml(metaLabel)}</span>
+                    <span class="${options.compact ? 'chat-mini-message-time' : 'chat-message-time'} ${statusClass}">${escapeChatHtml(metaLabel)}</span>
                 </div>
             </div>
         `;
@@ -785,6 +905,7 @@ function updateConversationReadStateLocally(conversationId, lastReadMessageId, l
         lastReadMessageId: lastReadMessageId || conversation.lastMessageId || "",
         lastReadAt: lastReadAt || new Date()
     };
+    chatUnreadMessageCountByConversation[conversationId] = 0;
 
     renderChatConversationList();
     renderChatMiniDock();
@@ -944,15 +1065,19 @@ function subscribeToChatConversations() {
 
             await getChatUsersByIds(peerIds);
             syncChatUserProfileListeners(peerIds);
+            await refreshUnreadMessageCounts(chatConversations);
             renderChatConversationList();
             renderChatMiniDock();
+            if (chatSelectedConversationId && chatCurrentMessages.length > 0) {
+                renderChatMessages(chatCurrentMessages);
+            }
             if (window.renderQuickStats) window.renderQuickStats();
             if (window.renderActivityFeed) window.renderActivityFeed();
 
             if (!shouldUseMobileChatFlow() && !chatSelectedFriendUid && chatConversations.length > 0 && isChatModalOpen()) {
                 const latestConversation = getOrderedChatConversations()[0];
                 const peerUid = getChatPeerUid(latestConversation);
-                if (peerUid) openChatWithUser(peerUid);
+                if (chatShouldAutoSelectLatest && peerUid) openChatWithUser(peerUid);
             }
         }, error => {
             console.error("Error al escuchar conversaciones:", error);
@@ -968,9 +1093,10 @@ async function openChatModal(friendUid, options = {}) {
     const modal = document.getElementById('chatModal');
     const dock = document.getElementById('chatMiniDock');
     const searchInput = document.getElementById('chatSearchInput');
-    const autoSelectLatest = options.autoSelectLatest !== undefined ? options.autoSelectLatest : !friendUid;
+    const autoSelectLatest = options.autoSelectLatest !== undefined ? options.autoSelectLatest : false;
     const shouldAutoSelectLatest = shouldUseMobileChatFlow() ? !!friendUid : autoSelectLatest;
     if (!modal) return;
+    chatShouldAutoSelectLatest = !!shouldAutoSelectLatest;
 
     closeChatMiniInbox();
     closeChatEmojiPickers();
@@ -984,6 +1110,12 @@ async function openChatModal(friendUid, options = {}) {
 
     modal.style.display = 'flex';
     if (window.setActiveNav) window.setActiveNav('messages');
+    if (!options.skipHistory && window.pushAppHistoryState) {
+        window.pushAppHistoryState('chat', {
+            friendUid: friendUid || null,
+            autoSelectLatest: !!autoSelectLatest
+        });
+    }
     renderChatConversationList();
     setChatMobileView(friendUid ? 'thread' : 'list');
     syncChatScrollLock();
@@ -1008,13 +1140,14 @@ async function openChatModal(friendUid, options = {}) {
     }
 }
 
-function closeChatModal() {
+function closeChatModal(options = {}) {
     const modal = document.getElementById('chatModal');
     if (modal) modal.style.display = 'none';
 
     chatSelectedFriendUid = null;
     chatSelectedConversationId = null;
     chatSearchTerm = "";
+    chatShouldAutoSelectLatest = false;
     closeChatEmojiPickers();
     cleanupChatMessagesListener();
     resetChatView();
@@ -1026,6 +1159,10 @@ function closeChatModal() {
     if (searchInput) searchInput.value = '';
     syncChatScrollLock();
     renderChatMiniDock();
+
+    if (!options.skipHistory && window.history && window.history.state && window.history.state.bitbondView === 'chat') {
+        window.history.back();
+    }
 }
 
 async function persistChatMessage(friendUid, text) {
@@ -1059,6 +1196,7 @@ async function persistChatMessage(friendUid, text) {
             updatedAt: serverTimestamp,
             lastMessageText: previewText,
             lastMessageSender: currentUser.uid,
+            lastMessageId: messageRef.id,
             lastMessageAt: serverTimestamp,
             readState: {
                 [currentUser.uid]: {
@@ -1076,6 +1214,8 @@ async function persistChatMessage(friendUid, text) {
     });
 
     await conversationRef.set(conversationPayload, { merge: true });
+
+    registerLocalSentMessage(friendUid, text, messageRef.id);
 }
 
 async function sendChatMiniMessage(event) {

@@ -4,8 +4,37 @@ var productChromeInitialized = false;
 var suggestedUsersCache = [];
 var DEFAULT_USER_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='60' fill='%23182234'/%3E%3Ccircle cx='60' cy='44' r='21' fill='%23f8fafc' fill-opacity='.92'/%3E%3Cpath d='M23 99c7-19 22-30 37-30s30 11 37 30' fill='%23f8fafc' fill-opacity='.92'/%3E%3C/svg%3E";
 var USER_VISUAL_CACHE_KEY = "bitbond:user-visual-cache";
+var THEME_STORAGE_KEY = "bitbond-theme";
 var liveUserDirectory = {};
 var liveUserDirectoryUnsubscribe = null;
+var appHistoryInitialized = false;
+var appHistoryIsSyncing = false;
+
+function getStoredThemePreference() {
+    try {
+        return window.localStorage.getItem(THEME_STORAGE_KEY);
+    } catch (error) {
+        return null;
+    }
+}
+
+function storeThemePreference(theme) {
+    try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (error) {
+        // Ignorar fallos de almacenamiento local
+    }
+}
+
+function applyThemePreference(theme) {
+    const normalizedTheme = theme === 'light' ? 'light' : 'dark';
+    document.body.classList.toggle('light-mode', normalizedTheme === 'light');
+
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) themeToggle.checked = normalizedTheme === 'dark';
+}
+
+applyThemePreference(getStoredThemePreference());
 
 function preloadImage(src) {
     if (!src || src === DEFAULT_USER_AVATAR) return;
@@ -149,8 +178,12 @@ function updateProfileUI() {
     renderActivityFeed();
 }
 
-function openModal() { document.getElementById('postModal').style.display = 'flex'; }
-function closeModal() {
+function openModal(options = {}) {
+    document.getElementById('postModal').style.display = 'flex';
+    if (!options.skipHistory) pushAppHistoryState('post_create');
+}
+
+function closeModal(options = {}) {
     document.getElementById('postModal').style.display = 'none';
     const content = document.getElementById('postContent');
     const imageInput = document.getElementById('imageInput');
@@ -161,6 +194,137 @@ function closeModal() {
     if (preview) preview.style.display = 'none';
     if (previewImg) previewImg.src = '';
     if (imageInput) imageInput.value = '';
+    if (!options.skipHistory && window.history && window.history.state && window.history.state.bitbondView === 'post_create') {
+        window.history.back();
+    }
+}
+
+function getAppHistoryState(view, payload) {
+    return {
+        bitbondView: view || 'home',
+        payload: payload || null
+    };
+}
+
+function initializeAppHistory() {
+    if (appHistoryInitialized || !window.history || typeof window.history.pushState !== 'function') return;
+    const currentState = window.history.state || {};
+    if (!currentState || currentState.bitbondView === undefined) {
+        window.history.replaceState(getAppHistoryState('home'), '', window.location.href);
+    }
+    window.addEventListener('popstate', handleAppHistoryPopState);
+    appHistoryInitialized = true;
+}
+
+function pushAppHistoryState(view, payload) {
+    if (appHistoryIsSyncing || !window.history || typeof window.history.pushState !== 'function') return;
+    const nextState = getAppHistoryState(view, payload);
+    const currentState = window.history.state || {};
+    const sameView = currentState.bitbondView === nextState.bitbondView;
+    const samePayload = JSON.stringify(currentState.payload || null) === JSON.stringify(nextState.payload || null);
+    if (sameView && samePayload) return;
+    window.history.pushState(nextState, '', window.location.href);
+}
+
+function closeAllSecondarySurfaces() {
+    const settingsModal = document.getElementById('settingsModal');
+    const requestsModal = document.getElementById('requestsModal');
+    const chatModal = document.getElementById('chatModal');
+    const mobileSearchModal = document.getElementById('mobileSearchModal');
+    const userListModal = document.getElementById('userListModal');
+    const profileModal = document.getElementById('profileModal');
+    const postModal = document.getElementById('postModal');
+
+    if (settingsModal) settingsModal.style.display = 'none';
+    if (requestsModal) requestsModal.style.display = 'none';
+    if (chatModal && chatModal.style.display === 'flex' && window.closeChatModal) {
+        window.closeChatModal({ skipHistory: true });
+    } else if (chatModal) {
+        chatModal.style.display = 'none';
+    }
+    if (mobileSearchModal) mobileSearchModal.style.display = 'none';
+    if (userListModal) userListModal.style.display = 'none';
+    if (profileModal && profileModal.style.display === 'flex' && window.closeProfileModal) {
+        window.closeProfileModal({ skipHistory: true });
+    } else if (profileModal) {
+        profileModal.style.display = 'none';
+    }
+    if (postModal && postModal.style.display === 'flex') {
+        closeModal({ skipHistory: true });
+    }
+    if (window.closeProfileDropdown) window.closeProfileDropdown();
+}
+
+async function syncUiToHistoryState(state) {
+    const normalizedState = state && state.bitbondView !== undefined ? state : getAppHistoryState('home');
+    const view = normalizedState.bitbondView || 'home';
+    const payload = normalizedState.payload || {};
+
+    appHistoryIsSyncing = true;
+    closeAllSecondarySurfaces();
+
+    if (window.cleanupChatMessagesListener) window.cleanupChatMessagesListener();
+
+    if (view !== 'profile' && view !== 'profile_followers' && view !== 'profile_following' && window.cerrarPerfilUsuario) {
+        window.cerrarPerfilUsuario({ skipHistory: true });
+    }
+
+    try {
+        if (view === 'settings') {
+            openSettings({ skipHistory: true });
+            return;
+        }
+
+        if (view === 'requests') {
+            if (window.openRequestsModal) window.openRequestsModal({ skipHistory: true });
+            return;
+        }
+
+        if (view === 'chat') {
+            if (window.openChatModal) {
+                await window.openChatModal(payload.friendUid || null, {
+                    autoSelectLatest: payload.autoSelectLatest,
+                    skipHistory: true
+                });
+            }
+            return;
+        }
+
+        if (view === 'search_mobile') {
+            if (window.abrirBuscadorMovil) window.abrirBuscadorMovil({ skipHistory: true });
+            return;
+        }
+
+        if (view === 'profile_edit') {
+            if (window.abrirEdicionPerfil) window.abrirEdicionPerfil({ skipHistory: true });
+            return;
+        }
+
+        if (view === 'post_create') {
+            openModal({ skipHistory: true });
+            return;
+        }
+
+        if (view === 'profile' || view === 'profile_followers' || view === 'profile_following') {
+            if (payload.uid && window.verPerfilUsuario) {
+                await window.verPerfilUsuario(payload.uid, { skipHistory: true });
+                if (view === 'profile_followers' && window.abrirModalSeguidores) {
+                    await window.abrirModalSeguidores({ skipHistory: true });
+                } else if (view === 'profile_following' && window.abrirModalSiguiendo) {
+                    await window.abrirModalSiguiendo({ skipHistory: true });
+                }
+            }
+            return;
+        }
+
+        goToHome({ skipHistory: true });
+    } finally {
+        appHistoryIsSyncing = false;
+    }
+}
+
+function handleAppHistoryPopState(event) {
+    syncUiToHistoryState(event ? event.state : null);
 }
 
 function resolveAppSection() {
@@ -169,22 +333,33 @@ function resolveAppSection() {
     return 'home';
 }
 
-function goToHome() {
+function goToHome(options = {}) {
+    const activeElement = document.activeElement;
+    if (activeElement && typeof activeElement.blur === 'function') {
+        activeElement.blur();
+    }
+
     const settingsModal = document.getElementById('settingsModal');
     const requestsModal = document.getElementById('requestsModal');
     const chatModal = document.getElementById('chatModal');
     const mobileSearchModal = document.getElementById('mobileSearchModal');
     const profileDropdown = document.getElementById('profileDropdown');
+    const userListModal = document.getElementById('userListModal');
 
     if (settingsModal) settingsModal.style.display = 'none';
     if (requestsModal) requestsModal.style.display = 'none';
-    if (chatModal) chatModal.style.display = 'none';
+    if (chatModal && chatModal.style.display === 'flex' && window.closeChatModal) {
+        window.closeChatModal({ skipHistory: true });
+    } else if (chatModal) {
+        chatModal.style.display = 'none';
+    }
     if (mobileSearchModal) mobileSearchModal.style.display = 'none';
+    if (userListModal) userListModal.style.display = 'none';
     if (profileDropdown) profileDropdown.classList.remove('show');
 
     if (window.cleanupChatMessagesListener) window.cleanupChatMessagesListener();
     if (window.cerrarPerfilUsuario) {
-        window.cerrarPerfilUsuario();
+        window.cerrarPerfilUsuario({ skipHistory: true });
     } else {
         const profileView = document.getElementById('profileView');
         const mainFeed = document.getElementById('mainFeed');
@@ -192,6 +367,8 @@ function goToHome() {
         if (mainFeed) mainFeed.style.display = 'flex';
         setActiveNav('home');
     }
+
+    if (!options.skipHistory) pushAppHistoryState('home');
 }
 
 function setActiveNav(section) {
@@ -216,20 +393,25 @@ function focusDesktopSearch() {
     setActiveNav('search');
 }
 
-function openSettings() {
+function openSettings(options = {}) {
     closeProfileDropdown();
     document.getElementById('settingsModal').style.display = 'flex';
     setActiveNav('settings');
+    if (!options.skipHistory) pushAppHistoryState('settings');
 }
 
-function closeSettings() {
+function closeSettings(options = {}) {
     document.getElementById('settingsModal').style.display = 'none';
     setActiveNav(resolveAppSection());
+    if (!options.skipHistory && window.history && window.history.state && window.history.state.bitbondView === 'settings') {
+        window.history.back();
+    }
 }
 
 function toggleTheme() {
     const isDark = document.getElementById('themeToggle').checked;
     document.body.classList.toggle('light-mode', !isDark);
+    storeThemePreference(isDark ? 'dark' : 'light');
 }
 
 function toggleProfileDropdown(event) {
@@ -414,39 +596,6 @@ function initializeProductChrome() {
                     <p style="font-weight: 500;">Los perfiles tech mejor valorados hoy</p>
                 </div>
             </div>
-            <div class="card right-rail-panel stats-panel">
-                <div class="section-header compact">
-                    <div>
-                        <p class="section-kicker">Resumen</p>
-                        <h3>Tu actividad</h3>
-                    </div>
-                </div>
-                <div class="stats-grid">
-                    <div class="stat-chip">
-                        <span id="quickStatPosts">0</span>
-                        <small>Posts</small>
-                    </div>
-                    <div class="stat-chip">
-                        <span id="quickStatFriends">0</span>
-                        <small>Amigos</small>
-                    </div>
-                    <div class="stat-chip">
-                        <span id="quickStatChats">0</span>
-                        <small>Chats</small>
-                    </div>
-                </div>
-                <div class="activity-stack">
-                    <div class="section-header compact">
-                        <div>
-                            <p class="section-kicker">Ahora</p>
-                            <h3>En movimiento</h3>
-                        </div>
-                    </div>
-                    <div id="activityFeedList" class="rail-list">
-                        <p class="rail-empty">Cargando actividad...</p>
-                    </div>
-                </div>
-            </div>
             <div class="card right-rail-panel">
                 <div class="section-header compact">
                     <div>
@@ -597,6 +746,8 @@ async function refreshProductSidebar() {
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeProductChrome();
+    initializeAppHistory();
+    applyThemePreference(getStoredThemePreference());
     applyCachedUserVisual();
     setActiveNav('home');
 });
@@ -612,6 +763,7 @@ if (auth) {
 }
 
 initializeProductChrome();
+initializeAppHistory();
 
 // Exportar globalmente
 window.updateProfileUI = updateProfileUI;
@@ -638,3 +790,4 @@ window.setActiveNav = setActiveNav;
 window.renderQuickStats = renderQuickStats;
 window.renderActivityFeed = renderActivityFeed;
 window.refreshProductSidebar = refreshProductSidebar;
+window.pushAppHistoryState = pushAppHistoryState;

@@ -118,7 +118,7 @@ function actualizarUIPerfil() {
     if (window.renderPosts) window.renderPosts();
 }
 
-function abrirEdicionPerfil() {
+function abrirEdicionPerfil(options = {}) {
     if (!currentUser) return;
     const modal = document.getElementById('profileModal');
     const title = document.getElementById('profileModalTitle');
@@ -152,10 +152,13 @@ function abrirEdicionPerfil() {
         if (editorEmail) editorEmail.innerText = currentUser.email || "Sin correo";
 
         modal.style.display = 'flex';
+        if (!options.skipHistory && window.pushAppHistoryState) {
+            window.pushAppHistoryState('profile_edit');
+        }
     }
 }
 
-function closeProfileModal() {
+function closeProfileModal(options = {}) {
     const cropperContainer = document.getElementById('cropperContainer');
     const imageInput = document.getElementById('profileImageInput');
     if (cropperContainer) cropperContainer.style.display = 'none';
@@ -166,6 +169,9 @@ function closeProfileModal() {
         profileCropper = null;
     }
     document.getElementById('profileModal').style.display = 'none';
+    if (!options.skipHistory && window.history && window.history.state && window.history.state.bitbondView === 'profile_edit') {
+        window.history.back();
+    }
 }
 
 async function handleGuardarPerfil(event) {
@@ -534,16 +540,22 @@ function hideSearchFilters() {
 // Buscador MÃ³vil (Lupa)
 let selectedMobileJob = "";
 
-function abrirBuscadorMovil() {
+function abrirBuscadorMovil(options = {}) {
     document.getElementById('mobileSearchModal').style.display = 'flex';
     document.getElementById('mobileSearchInput').focus();
     renderFiltrosMovil();
     if (window.setActiveNav) window.setActiveNav('search');
+    if (!options.skipHistory && window.pushAppHistoryState) {
+        window.pushAppHistoryState('search_mobile');
+    }
 }
 
-function cerrarBuscadorMovil() {
+function cerrarBuscadorMovil(options = {}) {
     document.getElementById('mobileSearchModal').style.display = 'none';
     if (window.setActiveNav) window.setActiveNav(window.resolveAppSection ? window.resolveAppSection() : 'home');
+    if (!options.skipHistory && window.history && window.history.state && window.history.state.bitbondView === 'search_mobile') {
+        window.history.back();
+    }
 }
 
 function renderFiltrosMovil() {
@@ -803,11 +815,16 @@ async function renderViewedProfileState(uid, u) {
     renderPostsUsuario(uid);
 }
 
-async function verPerfilUsuario(uid) {
+async function verPerfilUsuario(uid, options = {}) {
     console.log("Abriendo perfil para:", uid);
     if (!uid) {
         console.error("UID es nulo o indefinido");
         return;
+    }
+
+    const activeElement = document.activeElement;
+    if (activeElement && typeof activeElement.blur === 'function') {
+        activeElement.blur();
     }
 
     hideProfileSearchSurfaces();
@@ -831,14 +848,21 @@ async function verPerfilUsuario(uid) {
     }, error => {
         console.error("Error al escuchar perfil:", error);
     });
+
+    if (!options.skipHistory && window.pushAppHistoryState) {
+        window.pushAppHistoryState('profile', { uid: uid });
+    }
 }
 
-function closeUserListModal() {
+function closeUserListModal(options = {}) {
     activeUserListMode = '';
     document.getElementById('userListModal').style.display = 'none';
+    if (!options.skipHistory && window.history && window.history.state && (window.history.state.bitbondView === 'profile_followers' || window.history.state.bitbondView === 'profile_following')) {
+        window.history.back();
+    }
 }
 
-function cerrarPerfilUsuario() {
+function cerrarPerfilUsuario(options = {}) {
     stopViewedProfileListener();
     stopProfilePostsListener();
     stopViewedFollowersListener();
@@ -848,9 +872,12 @@ function cerrarPerfilUsuario() {
     document.getElementById('profileView').style.display = 'none';
     document.getElementById('mainFeed').style.display = 'flex';
     if (window.setActiveNav) window.setActiveNav('home');
+    if (!options.skipHistory && window.history && window.history.state && window.history.state.bitbondView === 'profile') {
+        window.history.back();
+    }
 }
 
-async function abrirModalSeguidores() {
+async function abrirModalSeguidores(options = {}) {
     const uid = window.viewedProfileUid;
     if (!uid) return;
 
@@ -862,9 +889,12 @@ async function abrirModalSeguidores() {
     activeUserListMode = 'followers';
     modal.style.display = 'flex';
     await renderFollowersList(content);
+    if (!options.skipHistory && window.pushAppHistoryState) {
+        window.pushAppHistoryState('profile_followers', { uid: uid });
+    }
 }
 
-async function abrirModalSiguiendo() {
+async function abrirModalSiguiendo(options = {}) {
     const uid = window.viewedProfileUid;
     if (!uid) return;
 
@@ -877,6 +907,9 @@ async function abrirModalSiguiendo() {
     content.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding: 1rem;">Cargando...</p>';
     modal.style.display = 'flex';
     await renderFollowingList(content);
+    if (!options.skipHistory && window.pushAppHistoryState) {
+        window.pushAppHistoryState('profile_following', { uid: uid });
+    }
 }
 
 // Exportar

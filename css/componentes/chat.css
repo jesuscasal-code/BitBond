@@ -384,6 +384,8 @@
     margin-top: 0.35rem;
     color: rgba(255, 255, 255, 0.72);
     font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0;
 }
 
 .chat-mini-bubble.received .chat-mini-message-time {
@@ -810,6 +812,8 @@
 .chat-message-time {
     display: block;
     margin-top: 0.45rem;
+    font-weight: 650;
+    letter-spacing: 0;
 }
 
 .chat-composer {
@@ -837,9 +841,31 @@
     box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.12);
 }
 
+.chat-message-time.is-sent,
+.chat-mini-message-time.is-sent {
+    color: #fde68a;
+}
+
 .chat-message-time.is-seen,
 .chat-mini-message-time.is-seen {
     color: var(--primary-strong);
+}
+
+.chat-bubble.sent .chat-message-time.is-sent,
+.chat-mini-bubble.sent .chat-mini-message-time.is-sent {
+    color: #fde68a;
+}
+
+.chat-bubble.sent .chat-message-time.is-seen,
+.chat-mini-bubble.sent .chat-mini-message-time.is-seen {
+    color: #a5f3fc;
+}
+
+.chat-message-time.is-seen,
+.chat-message-time.is-sent,
+.chat-mini-message-time.is-seen,
+.chat-mini-message-time.is-sent {
+    text-shadow: 0 1px 8px rgba(2, 6, 23, 0.18);
 }
 
 .chat-emoji-shell {

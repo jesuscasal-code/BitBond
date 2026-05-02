@@ -795,14 +795,20 @@ function handleFriendshipAction(buttonOrElement) {
     }
 }
 
-function openRequestsModal() {
+function openRequestsModal(options = {}) {
     document.getElementById('requestsModal').style.display = 'flex';
     if (window.setActiveNav) window.setActiveNav('requests');
+    if (!options.skipHistory && window.pushAppHistoryState) {
+        window.pushAppHistoryState('requests');
+    }
 }
 
-function closeRequestsModal() {
+function closeRequestsModal(options = {}) {
     document.getElementById('requestsModal').style.display = 'none';
     if (window.setActiveNav) window.setActiveNav(window.resolveAppSection ? window.resolveAppSection() : 'home');
+    if (!options.skipHistory && window.history && window.history.state && window.history.state.bitbondView === 'requests') {
+        window.history.back();
+    }
 }
 
 if (auth) {
