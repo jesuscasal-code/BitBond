@@ -48,11 +48,81 @@
     background: rgba(15, 23, 42, 0.55);
     box-shadow: 0 20px 40px -22px rgba(34, 211, 238, 0.45);
     transition: transform 0.28s ease, box-shadow 0.28s ease;
+    cursor: pointer;
 }
 
 .profile-avatar-large img:hover {
     transform: translateY(-2px) scale(1.02);
     box-shadow: 0 24px 48px -22px rgba(34, 211, 238, 0.6);
+}
+
+.profile-avatar-large img:focus-visible {
+    outline: 3px solid rgba(34, 211, 238, 0.55);
+    outline-offset: 5px;
+}
+
+.profile-image-viewer-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: rgba(2, 6, 23, 0.78);
+    backdrop-filter: blur(16px);
+    animation: fadeIn 0.2s ease;
+}
+
+.profile-image-viewer-card {
+    position: relative;
+    width: min(92vw, 520px);
+    padding: 1.2rem;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+        radial-gradient(circle at top, rgba(34, 211, 238, 0.14), transparent 38%),
+        rgba(15, 23, 42, 0.94);
+    box-shadow: 0 36px 80px -34px rgba(2, 6, 23, 0.95);
+    text-align: center;
+    animation: slideUp 0.22s ease;
+}
+
+.profile-image-viewer-card img {
+    width: min(72vw, 360px);
+    height: min(72vw, 360px);
+    object-fit: cover;
+    border-radius: 50%;
+    border: 5px solid var(--primary);
+    padding: 5px;
+    background: rgba(15, 23, 42, 0.75);
+    box-shadow: 0 28px 58px -28px rgba(34, 211, 238, 0.55);
+}
+
+.profile-image-viewer-card p {
+    margin: 1rem 0 0;
+    color: var(--text-main);
+    font-weight: 800;
+    font-size: 1.1rem;
+}
+
+.profile-image-viewer-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.profile-image-viewer-close:hover {
+    background: rgba(255, 255, 255, 0.14);
 }
 
 .profile-info-main {

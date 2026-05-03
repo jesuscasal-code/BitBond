@@ -18,6 +18,10 @@ var chatLastMobileBackActionAt = 0;
 var chatLastMobileBackTriggerAt = 0;
 var chatConversationListTouchResetTimeout = null;
 var chatShouldAutoSelectLatest = false;
+var chatDateIndicatorHideTimeout = null;
+var chatDateIndicatorFrame = null;
+var chatMiniDateIndicatorHideTimeout = null;
+var chatMiniDateIndicatorFrame = null;
 
 var CHAT_EMOJI_OPTIONS = [
     "\uD83D\uDE00",
@@ -160,6 +164,13 @@ function getChatTimestampValue(timestamp) {
     return 0;
 }
 
+function formatChatMessageTime(timestamp) {
+    const value = getChatTimestampValue(timestamp);
+    if (!value) return "";
+
+    return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 function formatChatTimestamp(timestamp) {
     const value = getChatTimestampValue(timestamp);
     if (!value) return "";
@@ -167,12 +178,282 @@ function formatChatTimestamp(timestamp) {
     const date = new Date(value);
     const now = new Date();
     const sameDay = date.toDateString() === now.toDateString();
+    const timeLabel = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     if (sameDay) {
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return timeLabel;
     }
 
-    return date.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+    return `${date.toLocaleDateString([], { day: '2-digit', month: '2-digit' })} ${timeLabel}`;
+}
+
+function capitalizeChatLabel(value) {
+    if (!value) return "";
+    return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatChatScrollDateLabel(timestamp) {
+    const value = getChatTimestampValue(timestamp);
+    if (!value) return "";
+
+    const date = new Date(value);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const targetDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.round((today.getTime() - targetDay.getTime()) / 86400000);
+
+    if (diffDays <= 0) return "Hoy";
+    if (diffDays === 1) return "Ayer";
+    if (diffDays < 7) {
+        return capitalizeChatLabel(date.toLocaleDateString('es-ES', { weekday: 'long' }));
+    }
+
+    return date.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit'
+    });
+}
+
+function getChatDayKey(timestamp) {
+    const value = getChatTimestampValue(timestamp);
+    if (!value) return "";
+
+    const date = new Date(value);
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function getChatDeliveryStatusClass(statusLabel) {
+    if (statusLabel === 'Visto') return 'is-seen';
+    if (statusLabel === 'Enviado') return 'is-sent';
+    if (statusLabel === 'Enviando') return 'is-pending';
+    return '';
+}
+
+function getChatDeliveryIconMarkup(statusLabel) {
+    const statusClass = getChatDeliveryStatusClass(statusLabel);
+    if (!statusClass) return '';
+
+    const pathMarkup = statusLabel === 'Enviando'
+        ? '<path d="M7 12.5 10.1 15.6 17 8.7"></path>'
+        : '<path d="M4.5 12.5 7.6 15.6 14.5 8.7"></path><path d="M10 12.5 13.1 15.6 20 8.7"></path>';
+
+    return `
+        <span class="chat-delivery-icon ${statusClass}" aria-label="${escapeChatHtml(statusLabel)}" title="${escapeChatHtml(statusLabel)}">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                ${pathMarkup}
+            </svg>
+        </span>
+    `;
+}
+
+function ensureChatDateIndicator() {
+    const conversationView = document.getElementById('chatConversationView');
+    if (!conversationView) return null;
+
+    let indicator = document.getElementById('chatDateIndicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'chatDateIndicator';
+        indicator.className = 'chat-date-indicator';
+        conversationView.appendChild(indicator);
+    }
+
+    return indicator;
+}
+
+function hideChatDateIndicator() {
+    const indicator = document.getElementById('chatDateIndicator');
+    if (!indicator) return;
+    indicator.classList.remove('show');
+}
+
+function ensureChatMiniDateIndicator() {
+    const threadView = document.getElementById('chatMiniThreadView');
+    if (!threadView) return null;
+
+    let indicator = document.getElementById('chatMiniDateIndicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'chatMiniDateIndicator';
+        indicator.className = 'chat-mini-date-indicator';
+        threadView.appendChild(indicator);
+    }
+
+    return indicator;
+}
+
+function hideChatMiniDateIndicator() {
+    const indicator = document.getElementById('chatMiniDateIndicator');
+    if (!indicator) return;
+    indicator.classList.remove('show');
+}
+
+function getChatElementVisibleRatio(element, container) {
+    if (!element || !container) return 0;
+
+    const elementRect = element.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const visibleTop = Math.max(elementRect.top, containerRect.top);
+    const visibleBottom = Math.min(elementRect.bottom, containerRect.bottom);
+    const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+    const elementHeight = Math.max(1, elementRect.height);
+
+    return visibleHeight / elementHeight;
+}
+
+function isChatElementVisibleInContainer(element, container, threshold = 0) {
+    if (!element || !container) return false;
+
+    const elementRect = element.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    return elementRect.bottom > containerRect.top + threshold
+        && elementRect.top < containerRect.bottom - threshold;
+}
+
+function hasVisibleChatDaySeparator(container) {
+    if (!container) return false;
+
+    const separators = container.querySelectorAll('.chat-day-separator');
+    return Array.from(separators).some(separator => (
+        getChatElementVisibleRatio(separator, container) >= 0.7
+    ));
+}
+
+function getVisibleChatMessageTimestamp(container) {
+    if (!container) return 0;
+
+    const rows = container.querySelectorAll('.chat-message-row[data-message-timestamp]');
+
+    for (const row of rows) {
+        if (isChatElementVisibleInContainer(row, container, 8)) {
+            return Number(row.dataset.messageTimestamp || 0);
+        }
+    }
+
+    const lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
+    return lastRow ? Number(lastRow.dataset.messageTimestamp || 0) : 0;
+}
+
+function hasVisibleChatMiniDaySeparator(container) {
+    if (!container) return false;
+
+    const separators = container.querySelectorAll('.chat-mini-day-separator');
+    return Array.from(separators).some(separator => (
+        getChatElementVisibleRatio(separator, container) >= 0.7
+    ));
+}
+
+function getVisibleChatMiniMessageTimestamp(container) {
+    if (!container) return 0;
+
+    const rows = container.querySelectorAll('.chat-mini-message-row[data-message-timestamp]');
+
+    for (const row of rows) {
+        if (isChatElementVisibleInContainer(row, container, 8)) {
+            return Number(row.dataset.messageTimestamp || 0);
+        }
+    }
+
+    const lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
+    return lastRow ? Number(lastRow.dataset.messageTimestamp || 0) : 0;
+}
+
+function showChatDateIndicator() {
+    const container = document.getElementById('chatMessages');
+    const indicator = ensureChatDateIndicator();
+    if (!container || !indicator) return;
+
+    if (hasVisibleChatDaySeparator(container)) {
+        hideChatDateIndicator();
+        return;
+    }
+
+    const timestampValue = getVisibleChatMessageTimestamp(container);
+    const label = formatChatScrollDateLabel(timestampValue);
+    if (!label) return;
+
+    indicator.innerText = label;
+    const header = document.querySelector('#chatConversationView .chat-conversation-header');
+    const headerHeight = header ? header.offsetHeight : 0;
+    indicator.style.top = `${headerHeight + 12}px`;
+    indicator.classList.add('show');
+
+    if (chatDateIndicatorHideTimeout) {
+        clearTimeout(chatDateIndicatorHideTimeout);
+    }
+
+    chatDateIndicatorHideTimeout = setTimeout(() => {
+        hideChatDateIndicator();
+    }, 2200);
+}
+
+function bindChatMessagesScrollIndicator() {
+    const container = document.getElementById('chatMessages');
+    if (!container || container.dataset.dateIndicatorBound === 'true') return;
+
+    container.dataset.dateIndicatorBound = 'true';
+    container.addEventListener('scroll', () => {
+        if (container.scrollHeight <= container.clientHeight) return;
+
+        if (chatDateIndicatorFrame) {
+            cancelAnimationFrame(chatDateIndicatorFrame);
+        }
+
+        chatDateIndicatorFrame = requestAnimationFrame(() => {
+            chatDateIndicatorFrame = null;
+            showChatDateIndicator();
+        });
+    }, { passive: true });
+}
+
+function showChatMiniDateIndicator() {
+    const container = document.getElementById('chatMiniMessages');
+    const indicator = ensureChatMiniDateIndicator();
+    if (!container || !indicator) return;
+
+    if (hasVisibleChatMiniDaySeparator(container)) {
+        hideChatMiniDateIndicator();
+        return;
+    }
+
+    const timestampValue = getVisibleChatMiniMessageTimestamp(container);
+    const label = formatChatScrollDateLabel(timestampValue);
+    if (!label) return;
+
+    indicator.innerText = label;
+    const header = document.querySelector('#chatMiniThreadView .chat-mini-thread-header');
+    const headerHeight = header ? header.offsetHeight : 0;
+    indicator.style.top = `${headerHeight + 8}px`;
+    indicator.classList.add('show');
+
+    if (chatMiniDateIndicatorHideTimeout) {
+        clearTimeout(chatMiniDateIndicatorHideTimeout);
+    }
+
+    chatMiniDateIndicatorHideTimeout = setTimeout(() => {
+        hideChatMiniDateIndicator();
+    }, 1800);
+}
+
+function bindChatMiniMessagesScrollIndicator() {
+    const container = document.getElementById('chatMiniMessages');
+    if (!container || container.dataset.dateIndicatorBound === 'true') return;
+
+    container.dataset.dateIndicatorBound = 'true';
+    container.addEventListener('scroll', () => {
+        if (container.scrollHeight <= container.clientHeight) return;
+
+        if (chatMiniDateIndicatorFrame) {
+            cancelAnimationFrame(chatMiniDateIndicatorFrame);
+        }
+
+        chatMiniDateIndicatorFrame = requestAnimationFrame(() => {
+            chatMiniDateIndicatorFrame = null;
+            showChatMiniDateIndicator();
+        });
+    }, { passive: true });
 }
 
 async function getChatUsersByIds(uids) {
@@ -779,6 +1060,8 @@ function resetChatMiniThread() {
     const input = document.getElementById('chatMiniMessageInput');
     closeChatEmojiPickers();
     chatCurrentMessages = [];
+    hideChatDateIndicator();
+    hideChatMiniDateIndicator();
     if (messages) messages.innerHTML = '<div class="chat-empty-mini">Todavía no hay mensajes.</div>';
     if (input) input.value = '';
     setChatMobileView('list');
@@ -792,6 +1075,8 @@ function resetChatView() {
 
     closeChatEmojiPickers();
     chatCurrentMessages = [];
+    hideChatDateIndicator();
+    hideChatMiniDateIndicator();
     if (emptyState) emptyState.style.display = 'flex';
     if (conversationView) conversationView.style.display = 'none';
     if (messages) messages.innerHTML = '<div class="chat-empty-mini">Todavía no hay mensajes.</div>';
@@ -850,24 +1135,37 @@ function buildChatMessagesMarkup(messages, options = {}) {
     }
 
     const conversation = options.conversation || getChatConversationById(chatSelectedConversationId);
-    const lastSentMessageIndex = getLastSentMessageIndex(messages);
+    let previousDayKey = "";
 
-    return messages.map((message, index) => {
+    return messages.map((message) => {
         const isMine = message.senderId === currentUser.uid;
-        const timeLabel = formatChatTimestamp(message.createdAt);
-        const statusLabel = isMine && index === lastSentMessageIndex
+        const timeLabel = formatChatMessageTime(message.createdAt);
+        const statusLabel = isMine
             ? getChatMessageDeliveryStatus(message, conversation)
             : "";
-        const metaLabel = [timeLabel, statusLabel].filter(Boolean).join(' · ');
-        const statusClass = statusLabel === 'Visto'
-            ? 'is-seen'
-            : (statusLabel === 'Enviado' ? 'is-sent' : '');
+        const statusClass = getChatDeliveryStatusClass(statusLabel);
+        const deliveryIconMarkup = isMine ? getChatDeliveryIconMarkup(statusLabel) : '';
+        const timestampValue = getChatTimestampValue(message.createdAt);
+        const dayKey = getChatDayKey(message.createdAt);
+        const daySeparatorClass = options.compact ? 'chat-mini-day-separator' : 'chat-day-separator';
+        const shouldRenderDaySeparator = dayKey && dayKey !== previousDayKey;
+        const daySeparatorMarkup = shouldRenderDaySeparator
+            ? `<div class="${daySeparatorClass}"><span>${escapeChatHtml(formatChatScrollDateLabel(message.createdAt))}</span></div>`
+            : '';
+
+        if (dayKey) {
+            previousDayKey = dayKey;
+        }
 
         return `
-            <div class="${options.compact ? 'chat-mini-message-row' : 'chat-message-row'} ${isMine ? 'sent' : 'received'}">
+            ${daySeparatorMarkup}
+            <div class="${options.compact ? 'chat-mini-message-row' : 'chat-message-row'} ${isMine ? 'sent' : 'received'}" data-message-timestamp="${timestampValue}">
                 <div class="${options.compact ? 'chat-mini-bubble' : 'chat-bubble'} ${isMine ? 'sent' : 'received'}">
                     <p>${escapeChatHtml(message.text)}</p>
-                    <span class="${options.compact ? 'chat-mini-message-time' : 'chat-message-time'} ${statusClass}">${escapeChatHtml(metaLabel)}</span>
+                    <span class="${options.compact ? 'chat-mini-message-time' : 'chat-message-time'} ${statusClass}">
+                        <span class="chat-message-time-label">${escapeChatHtml(timeLabel)}</span>
+                        ${deliveryIconMarkup}
+                    </span>
                 </div>
             </div>
         `;
@@ -887,6 +1185,10 @@ function renderChatMessages(messages) {
         miniContainer.innerHTML = buildChatMessagesMarkup(messages, { compact: true, conversation: conversation });
     }
 
+    bindChatMessagesScrollIndicator();
+    bindChatMiniMessagesScrollIndicator();
+    hideChatDateIndicator();
+    hideChatMiniDateIndicator();
     scrollChatToBottom();
     const miniMessages = document.getElementById('chatMiniMessages');
     if (miniMessages) miniMessages.scrollTop = miniMessages.scrollHeight;

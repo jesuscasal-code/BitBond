@@ -174,6 +174,76 @@ function closeProfileModal(options = {}) {
     }
 }
 
+function closeProfileImageViewer(options = {}) {
+    const modal = document.getElementById('profileImageViewer');
+    if (modal) modal.remove();
+
+    if (!options.skipHistory && window.history && window.history.state && window.history.state.bitbondView === 'profile_image') {
+        window.history.back();
+    }
+}
+
+function openProfileImageViewer(imageSrc, profileName, options = {}) {
+    if (!imageSrc) return;
+
+    closeProfileImageViewer({ skipHistory: true });
+
+    const modal = document.createElement('div');
+    modal.id = 'profileImageViewer';
+    modal.className = 'profile-image-viewer-overlay';
+    modal.onclick = closeProfileImageViewer;
+
+    const card = document.createElement('div');
+    card.className = 'profile-image-viewer-card';
+    card.onclick = event => event.stopPropagation();
+
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'profile-image-viewer-close';
+    closeButton.setAttribute('aria-label', 'Cerrar imagen');
+    closeButton.innerHTML = '&times;';
+    closeButton.onclick = closeProfileImageViewer;
+
+    const image = document.createElement('img');
+    image.src = imageSrc;
+    image.alt = `Foto de perfil de ${profileName || 'usuario'}`;
+    image.onerror = function () {
+        this.onerror = null;
+        this.src = window.DEFAULT_USER_AVATAR || '';
+    };
+
+    const caption = document.createElement('p');
+    caption.innerText = profileName || 'Foto de perfil';
+
+    card.appendChild(closeButton);
+    card.appendChild(image);
+    card.appendChild(caption);
+    modal.appendChild(card);
+
+    document.body.appendChild(modal);
+
+    if (!options.skipHistory && window.pushAppHistoryState) {
+        window.pushAppHistoryState('profile_image', {
+            uid: window.viewedProfileData ? window.viewedProfileData.uid : null,
+            imageSrc: imageSrc,
+            profileName: profileName || 'Usuario'
+        });
+    }
+}
+
+function handleViewedProfileAvatarClick() {
+    if (!window.viewedProfileData || !currentUser) return;
+
+    if (window.viewedProfileData.uid === currentUser.uid) {
+        abrirEdicionPerfil();
+        return;
+    }
+
+    const avatar = document.getElementById('viewedProfileAvatar');
+    const imageSrc = avatar ? avatar.src : "";
+    openProfileImageViewer(imageSrc, window.viewedProfileData.nombre || "Usuario");
+}
+
 async function handleGuardarPerfil(event) {
     if (event) event.preventDefault();
     if (!currentUser) return;
@@ -803,9 +873,23 @@ async function renderViewedProfileState(uid, u) {
     document.getElementById('profileView').style.display = 'flex';
     if (window.setActiveNav) window.setActiveNav('profile');
 
-    document.getElementById('viewedProfileAvatar').src = window.resolveUserAvatar
+    const profileAvatar = document.getElementById('viewedProfileAvatar');
+    const resolvedAvatar = window.resolveUserAvatar
         ? window.resolveUserAvatar(u, uid)
         : "";
+    if (profileAvatar) {
+        profileAvatar.src = resolvedAvatar;
+        profileAvatar.onclick = handleViewedProfileAvatarClick;
+        profileAvatar.setAttribute('role', 'button');
+        profileAvatar.setAttribute('tabindex', '0');
+        profileAvatar.setAttribute('title', uid === currentUser.uid ? 'Editar perfil' : 'Ver foto de perfil');
+        profileAvatar.onkeydown = (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleViewedProfileAvatarClick();
+            }
+        };
+    }
     document.getElementById('viewedProfileName').innerText = u.nombre || "Usuario";
     document.getElementById('viewedProfileJob').innerText = u.puesto || "Miembro de BitBond";
     document.getElementById('viewedProfileBio').innerText = u.bio || "Sin biografia.";
@@ -918,6 +1002,8 @@ window.abrirModalSiguiendo = abrirModalSiguiendo;
 window.closeUserListModal = closeUserListModal;
 window.cerrarPerfilUsuario = cerrarPerfilUsuario;
 window.abrirEdicionPerfil = abrirEdicionPerfil;
+window.openProfileImageViewer = openProfileImageViewer;
+window.closeProfileImageViewer = closeProfileImageViewer;
 window.resetProfileAvatar = resetProfileAvatar;
 window.handleProfilePhotoSelect = handleProfilePhotoSelect;
 window.applyCrop = applyCrop;

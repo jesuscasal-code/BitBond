@@ -4,6 +4,14 @@ var allStories = [];
 var currentStoryIndex = 0;
 var storyTimer = null;
 var storiesUnsubscribe = null;
+var storyDuration = 5000;
+var storyAnimationStart = null;
+var storyElapsedBeforePause = 0;
+var storyCurrentFill = null;
+var storyIsPaused = false;
+var storyPointerStart = null;
+var storyHoldTimeout = null;
+var storyInteractionBound = false;
 
 function cleanupStoriesListener() {
     if (storiesUnsubscribe) {
@@ -160,7 +168,150 @@ function createNewStory() {
 
 var currentViewingUserStories = [];
 
-function viewStories(uid) {
+function cancelStoryAnimation() {
+    if (storyTimer) {
+        cancelAnimationFrame(storyTimer);
+        storyTimer = null;
+    }
+}
+
+function resetStoryInteractionState() {
+    cancelStoryAnimation();
+    if (storyHoldTimeout) {
+        clearTimeout(storyHoldTimeout);
+        storyHoldTimeout = null;
+    }
+    storyAnimationStart = null;
+    storyElapsedBeforePause = 0;
+    storyCurrentFill = null;
+    storyIsPaused = false;
+    storyPointerStart = null;
+}
+
+function runStoryProgress(timestamp) {
+    if (storyIsPaused) return;
+    if (!storyAnimationStart) storyAnimationStart = timestamp;
+
+    const progress = storyElapsedBeforePause + (timestamp - storyAnimationStart);
+    const percent = Math.min((progress / storyDuration) * 100, 100);
+
+    if (storyCurrentFill) storyCurrentFill.style.width = percent + '%';
+
+    if (progress < storyDuration) {
+        storyTimer = requestAnimationFrame(runStoryProgress);
+    } else {
+        nextStory();
+    }
+}
+
+function startStoryProgress(fill) {
+    resetStoryInteractionState();
+    storyCurrentFill = fill || null;
+    if (storyCurrentFill) storyCurrentFill.style.width = '0%';
+    storyTimer = requestAnimationFrame(runStoryProgress);
+}
+
+function pauseStoryProgress() {
+    if (storyIsPaused) return;
+    storyIsPaused = true;
+
+    if (storyAnimationStart) {
+        storyElapsedBeforePause += performance.now() - storyAnimationStart;
+    }
+
+    storyAnimationStart = null;
+    cancelStoryAnimation();
+}
+
+function resumeStoryProgress() {
+    if (!storyIsPaused) return;
+    storyIsPaused = false;
+    storyAnimationStart = null;
+    storyTimer = requestAnimationFrame(runStoryProgress);
+}
+
+function previousStory() {
+    if (currentStoryIndex > 0) {
+        currentStoryIndex--;
+        showStory();
+        return;
+    }
+
+    showStory();
+}
+
+function handleStoryPointerDown(event) {
+    if (!event || event.button > 0) return;
+
+    const target = event.target;
+    if (target && typeof target.closest === 'function' && target.closest('.story-header, .story-close')) return;
+
+    if (storyHoldTimeout) clearTimeout(storyHoldTimeout);
+
+    storyPointerStart = {
+        x: event.clientX || 0,
+        pausedByHold: false
+    };
+
+    storyHoldTimeout = setTimeout(() => {
+        if (!storyPointerStart) return;
+        storyPointerStart.pausedByHold = true;
+        pauseStoryProgress();
+    }, 180);
+}
+
+function handleStoryPointerUp(event) {
+    if (!storyPointerStart) return;
+
+    if (storyHoldTimeout) {
+        clearTimeout(storyHoldTimeout);
+        storyHoldTimeout = null;
+    }
+
+    const wasPausedByHold = storyPointerStart.pausedByHold;
+    const startX = storyPointerStart.x;
+    storyPointerStart = null;
+
+    if (wasPausedByHold) {
+        resumeStoryProgress();
+        return;
+    }
+
+    const content = document.querySelector('.story-viewer-content');
+    const rect = content ? content.getBoundingClientRect() : null;
+    const pointerX = event && event.clientX ? event.clientX : startX;
+    const midpoint = rect ? rect.left + (rect.width / 2) : window.innerWidth / 2;
+
+    if (pointerX >= midpoint) {
+        nextStory();
+    } else {
+        previousStory();
+    }
+}
+
+function handleStoryPointerCancel() {
+    if (storyHoldTimeout) {
+        clearTimeout(storyHoldTimeout);
+        storyHoldTimeout = null;
+    }
+    storyPointerStart = null;
+    resumeStoryProgress();
+}
+
+function bindStoryViewerInteractions() {
+    if (storyInteractionBound) return;
+
+    const content = document.querySelector('.story-viewer-content');
+    if (!content) return;
+
+    content.addEventListener('pointerdown', handleStoryPointerDown);
+    content.addEventListener('pointerup', handleStoryPointerUp);
+    content.addEventListener('pointerleave', handleStoryPointerCancel);
+    content.addEventListener('pointercancel', handleStoryPointerCancel);
+    storyInteractionBound = true;
+}
+
+function viewStories(uid, options = {}) {
     const user = allStories.filter(s => s.uid === uid);
     if (user.length === 0) return;
 
@@ -168,11 +319,16 @@ function viewStories(uid) {
     currentStoryIndex = 0;
 
     document.getElementById('storyViewer').style.display = 'flex';
+    bindStoryViewerInteractions();
     showStory();
+
+    if (!options.skipHistory && window.pushAppHistoryState) {
+        window.pushAppHistoryState('story', { uid: uid });
+    }
 }
 
 function showStory() {
-    clearTimeout(storyTimer);
+    resetStoryInteractionState();
     const story = currentViewingUserStories[currentStoryIndex];
     if (!story) {
         closeStoryViewer();
@@ -221,23 +377,7 @@ function showStory() {
     const currentFill = progressContainer.querySelectorAll('.story-progress-fill')[currentStoryIndex];
 
     // Animación
-    let start = null;
-    const duration = 5000; // 5 seg por historia
-
-    function animate(timestamp) {
-        if (!start) start = timestamp;
-        const progress = timestamp - start;
-        const percent = Math.min((progress / duration) * 100, 100);
-
-        if (currentFill) currentFill.style.width = percent + '%';
-
-        if (progress < duration) {
-            storyTimer = requestAnimationFrame(animate);
-        } else {
-            nextStory();
-        }
-    }
-    storyTimer = requestAnimationFrame(animate);
+    startStoryProgress(currentFill);
 }
 
 function nextStory() {
@@ -249,10 +389,13 @@ function nextStory() {
     }
 }
 
-function closeStoryViewer() {
-    clearTimeout(storyTimer);
-    cancelAnimationFrame(storyTimer);
+function closeStoryViewer(options = {}) {
+    resetStoryInteractionState();
     document.getElementById('storyViewer').style.display = 'none';
+
+    if (!options.skipHistory && window.history && window.history.state && window.history.state.bitbondView === 'story') {
+        window.history.back();
+    }
 }
 
 function calcularTiempo(timestamp) {

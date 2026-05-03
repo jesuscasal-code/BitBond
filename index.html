@@ -131,19 +131,6 @@
                         <span class="sidebar-profile-pill">Ver perfil</span>
                     </button>
 
-                    <button type="button" class="sidebar-compose btn btn-primary" onclick="openModal()">
-                        <span class="nav-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M12 5v14"></path>
-                                <path d="M5 12h14"></path>
-                            </svg>
-                        </span>
-                        <span class="sidebar-compose-copy">
-                            <strong>Crear</strong>
-                            <small>Comparte una idea</small>
-                        </span>
-                    </button>
-
                     <nav class="sidebar-nav" aria-label="Navegacion principal">
                         <ul class="side-nav-list">
                             <li>
@@ -160,6 +147,21 @@
                                         <span class="side-nav-subtitle">Tu feed principal</span>
                                     </span>
                                 </a>
+                            </li>
+                            <li>
+                                <button type="button" class="side-nav-link sidebar-compose" onclick="openModal()"
+                                    data-tooltip="Crear">
+                                    <span class="nav-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M12 5v14"></path>
+                                            <path d="M5 12h14"></path>
+                                        </svg>
+                                    </span>
+                                    <span class="side-nav-copy sidebar-compose-copy">
+                                        <span class="side-nav-title">Crear</span>
+                                        <span class="side-nav-subtitle">Comparte una idea</span>
+                                    </span>
+                                </button>
                             </li>
                             <li>
                                 <a href="javascript:void(0)" onclick="openRequestsModal()" class="side-nav-link"

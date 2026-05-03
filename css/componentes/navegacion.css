@@ -401,6 +401,9 @@
     border-radius: 12px;
     border: 1px solid transparent;
     box-shadow: none;
+    width: 100%;
+    font: inherit;
+    cursor: pointer;
 }
 
 .sidebar-compose:hover,

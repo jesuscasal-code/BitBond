@@ -235,6 +235,8 @@ function closeAllSecondarySurfaces() {
     const profileModal = document.getElementById('profileModal');
     const postModal = document.getElementById('postModal');
 
+    if (window.closeProfileImageViewer) window.closeProfileImageViewer({ skipHistory: true });
+    if (window.closeStoryViewer) window.closeStoryViewer({ skipHistory: true });
     if (settingsModal) settingsModal.style.display = 'none';
     if (requestsModal) requestsModal.style.display = 'none';
     if (chatModal && chatModal.style.display === 'flex' && window.closeChatModal) {
@@ -280,6 +282,11 @@ async function syncUiToHistoryState(state) {
             return;
         }
 
+        if (view === 'story') {
+            if (payload.uid && window.viewStories) window.viewStories(payload.uid, { skipHistory: true });
+            return;
+        }
+
         if (view === 'chat') {
             if (window.openChatModal) {
                 await window.openChatModal(payload.friendUid || null, {
@@ -297,6 +304,16 @@ async function syncUiToHistoryState(state) {
 
         if (view === 'profile_edit') {
             if (window.abrirEdicionPerfil) window.abrirEdicionPerfil({ skipHistory: true });
+            return;
+        }
+
+        if (view === 'profile_image') {
+            if (payload.uid && window.verPerfilUsuario) {
+                await window.verPerfilUsuario(payload.uid, { skipHistory: true });
+            }
+            if (window.openProfileImageViewer) {
+                window.openProfileImageViewer(payload.imageSrc || '', payload.profileName || 'Usuario', { skipHistory: true });
+            }
             return;
         }
 

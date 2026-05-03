@@ -155,6 +155,28 @@ function getPostAuthorAvatarFallback(post, cachedProfile) {
     return window.DEFAULT_USER_AVATAR || "";
 }
 
+function handlePostImageLoad(imageElement) {
+    if (!imageElement) return;
+
+    const container = imageElement.closest('.post-image-container');
+    if (!container) return;
+
+    const naturalWidth = Number(imageElement.naturalWidth) || 0;
+    const naturalHeight = Number(imageElement.naturalHeight) || 0;
+    if (!naturalWidth || !naturalHeight) return;
+
+    container.classList.remove('is-portrait', 'is-landscape', 'is-square');
+
+    const ratio = naturalWidth / naturalHeight;
+    if (ratio < 0.92) {
+        container.classList.add('is-portrait');
+    } else if (ratio > 1.08) {
+        container.classList.add('is-landscape');
+    } else {
+        container.classList.add('is-square');
+    }
+}
+
 function buildPostCard(post, options = {}) {
     const likedBy = post.likedBy || [];
     const comments = post.comments || [];
@@ -234,7 +256,7 @@ function buildPostCard(post, options = {}) {
                     <p>${escapePostHtml(post.content)}</p>
                     ${post.image ? `
                         <div class="post-image-container">
-                            <img src="${escapePostHtml(post.image)}" class="post-image" alt="Imagen de la publicacion" loading="lazy" decoding="async">
+                            <img src="${escapePostHtml(post.image)}" class="post-image" alt="Imagen de la publicacion" loading="lazy" decoding="async" onload="handlePostImageLoad(this)">
                             <div class="double-tap-heart">&#10084;</div>
                         </div>
                     ` : ''}
@@ -473,6 +495,7 @@ window.buildPostCard = buildPostCard;
 window.confirmDeletePost = confirmDeletePost;
 window.formatPostRelativeTime = formatPostRelativeTime;
 window.getPostCommentIcon = getPostCommentIcon;
+window.handlePostImageLoad = handlePostImageLoad;
 window.toggleCommentsUI = (id, btn) => {
     let el;
     if (btn) {
