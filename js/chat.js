@@ -1318,7 +1318,7 @@ async function openChatWithUser(friendUid) {
     await subscribeToChatMessages(chatSelectedConversationId);
 
     const input = document.getElementById('chatMessageInput');
-    if (input) input.focus();
+    if (input && !shouldUseMobileChatFlow()) input.focus();
 }
 
 async function openChatMiniConversation(friendUid, event) {
@@ -1423,7 +1423,11 @@ async function openChatModal(friendUid, options = {}) {
     renderChatConversationList();
     setChatMobileView(friendUid ? 'thread' : 'list');
     syncChatScrollLock();
-    if (searchInput) searchInput.focus();
+    if (shouldUseMobileChatFlow()) {
+        blurActiveChatElement();
+    } else if (searchInput) {
+        searchInput.focus();
+    }
 
     if (friendUid) {
         await openChatWithUser(friendUid);

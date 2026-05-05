@@ -1367,6 +1367,9 @@ body.light-mode .chat-emoji-option:hover {
         align-items: center;
         gap: 0.8rem;
         padding: 0.9rem 4rem 0.9rem calc(0.95rem + env(safe-area-inset-left));
+        position: sticky;
+        top: 0;
+        z-index: 4;
     }
 
     .chat-mobile-back-btn {
@@ -1400,6 +1403,8 @@ body.light-mode .chat-emoji-option:hover {
     }
 
     .chat-messages {
+        flex: 1 1 auto;
+        min-height: 0;
         padding-top: 1rem;
         padding-bottom: 1rem;
         gap: 0.7rem;
@@ -1425,6 +1430,9 @@ body.light-mode .chat-emoji-option:hover {
         gap: 0.55rem;
         padding-top: 0.85rem;
         padding-bottom: calc(0.95rem + env(safe-area-inset-bottom));
+        position: sticky;
+        bottom: 0;
+        z-index: 4;
     }
 
     .chat-input {
