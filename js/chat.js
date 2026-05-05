@@ -1494,6 +1494,8 @@ async function openChatMiniConversation(friendUid, event) {
     chatMiniOpen = true;
     chatMiniMode = "thread";
     closeChatEmojiPickers();
+    cleanupChatMessagesListener();
+    clearChatMessagesWhileLoading();
 
     updateChatMiniHeader(friendUid);
     renderChatMiniDock();
