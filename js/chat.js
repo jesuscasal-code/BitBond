@@ -129,13 +129,17 @@ function ensureLatestChatMessageVisible() {
     const container = document.getElementById('chatMessages');
     if (!container) return;
 
-    const rows = container.querySelectorAll('.chat-message-row');
-    const lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
-    if (!lastRow || typeof lastRow.scrollIntoView !== 'function') return;
-
     requestAnimationFrame(() => {
-        lastRow.scrollIntoView({ block: 'end', inline: 'nearest' });
+        container.scrollTop = container.scrollHeight;
     });
+}
+
+function settleLatestChatMessageVisible(delayMs = 0) {
+    setTimeout(() => {
+        syncChatMobileViewport();
+        syncChatMobileLayoutMetrics();
+        ensureLatestChatMessageVisible();
+    }, Math.max(0, delayMs || 0));
 }
 
 function bindChatMobileInputVisibility() {
@@ -144,11 +148,8 @@ function bindChatMobileInputVisibility() {
 
     input.dataset.mobileVisibilityBound = 'true';
     input.addEventListener('focus', () => {
-        setTimeout(() => {
-            syncChatMobileViewport();
-            syncChatMobileLayoutMetrics();
-            ensureLatestChatMessageVisible();
-        }, 120);
+        settleLatestChatMessageVisible(40);
+        settleLatestChatMessageVisible(180);
     });
 }
 
@@ -208,6 +209,7 @@ function syncChatMobileKeyboardLayout() {
         chatMobileViewportFrame = null;
         syncChatMobileViewport();
         syncChatMobileLayoutMetrics();
+        ensureLatestChatMessageVisible();
     });
 }
 
@@ -1722,20 +1724,22 @@ async function sendChatMessage(event) {
     const text = input ? input.value.trim() : "";
     if (!text) return;
 
+    if (input) input.value = '';
+    closeChatEmojiPickers();
+    if (input && shouldUseMobileChatFlow()) {
+        input.focus({ preventScroll: true });
+        settleLatestChatMessageVisible(20);
+    }
+
     try {
         await persistChatMessage(chatSelectedFriendUid, text);
-        if (input) input.value = '';
-        closeChatEmojiPickers();
         if (input && shouldUseMobileChatFlow()) {
             input.focus({ preventScroll: true });
-            setTimeout(() => {
-                syncChatMobileViewport();
-                syncChatMobileLayoutMetrics();
-                ensureLatestChatMessageVisible();
-            }, 80);
+            settleLatestChatMessageVisible(60);
         }
         scrollChatToBottom();
     } catch (error) {
+        if (input && !input.value) input.value = text;
         console.error("Error al enviar mensaje:", error);
         alert("No se pudo enviar el mensaje. Revisa las reglas de Firestore y vuelve a intentarlo.");
     }
