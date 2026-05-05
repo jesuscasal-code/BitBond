@@ -1269,15 +1269,21 @@ body.light-mode .chat-emoji-option:hover {
 
     #chatModal.chat-mobile-thread-active .chat-main {
         display: flex;
-        height: 100%;
+        height: var(--chat-mobile-vh);
+        min-height: 0;
+        overflow: hidden;
     }
 
     #chatModal.chat-mobile-thread-active .chat-conversation-view {
-        padding-top: calc(var(--chat-mobile-header-height) + var(--chat-mobile-offset-top));
+        height: var(--chat-mobile-vh);
+        min-height: 0;
+        overflow: hidden;
+        padding-top: 0;
+        position: relative;
     }
 
     #chatModal.chat-mobile-thread-active .chat-conversation-header {
-        position: fixed;
+        position: absolute;
         top: var(--chat-mobile-offset-top);
         left: 0;
         right: 0;
@@ -1286,6 +1292,24 @@ body.light-mode .chat-emoji-option:hover {
         padding-right: 4rem;
         padding-left: calc(0.95rem + env(safe-area-inset-left));
         z-index: 8;
+    }
+
+    #chatModal.chat-mobile-thread-active .chat-messages {
+        position: absolute;
+        top: calc(var(--chat-mobile-header-height) + var(--chat-mobile-offset-top));
+        right: 0;
+        bottom: var(--chat-mobile-composer-height);
+        left: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    #chatModal.chat-mobile-thread-active .chat-composer {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 7;
     }
 
     .nav-action-btn {
@@ -1430,9 +1454,9 @@ body.light-mode .chat-emoji-option:hover {
         flex: 1 1 auto;
         min-height: 0;
         padding-top: 1rem;
-        padding-bottom: calc(var(--chat-mobile-composer-height) + 1rem + env(safe-area-inset-bottom));
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom));
         gap: 0.7rem;
-        scroll-padding-bottom: calc(var(--chat-mobile-composer-height) + 1rem + env(safe-area-inset-bottom));
+        scroll-padding-bottom: calc(1rem + env(safe-area-inset-bottom));
     }
 
     .chat-bubble {
@@ -1455,9 +1479,6 @@ body.light-mode .chat-emoji-option:hover {
         gap: 0.55rem;
         padding-top: 0.85rem;
         padding-bottom: calc(0.95rem + env(safe-area-inset-bottom));
-        position: sticky;
-        bottom: 0;
-        z-index: 4;
     }
 
     .chat-input {

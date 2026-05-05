@@ -148,6 +148,12 @@ function bindChatMobileInputVisibility() {
     });
 }
 
+function syncChatMobileKeyboardLayout() {
+    syncChatMobileViewport();
+    syncChatMobileLayoutMetrics();
+    ensureLatestChatMessageVisible();
+}
+
 function suppressMobileChatConversationOpen(durationMs) {
     if (!shouldUseMobileChatFlow()) return;
     chatSuppressConversationOpenUntil = Date.now() + Math.max(0, durationMs || 0);
@@ -1783,10 +1789,8 @@ window.addEventListener('resize', () => {
 });
 
 if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', syncChatMobileViewport);
-    window.visualViewport.addEventListener('scroll', syncChatMobileViewport);
-    window.visualViewport.addEventListener('resize', syncChatMobileLayoutMetrics);
-    window.visualViewport.addEventListener('scroll', syncChatMobileLayoutMetrics);
+    window.visualViewport.addEventListener('resize', syncChatMobileKeyboardLayout);
+    window.visualViewport.addEventListener('scroll', syncChatMobileKeyboardLayout);
 }
 
 ensureChatEmojiPickersRendered();
