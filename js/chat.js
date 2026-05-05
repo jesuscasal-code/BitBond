@@ -84,6 +84,24 @@ function syncChatScrollLock() {
     body.classList.toggle('chat-scroll-locked', isChatModalOpen());
 }
 
+function syncChatMobileViewport() {
+    const modal = document.getElementById('chatModal');
+    if (!modal) return;
+
+    if (!isChatModalOpen() || !shouldUseMobileChatFlow()) {
+        modal.style.removeProperty('--chat-mobile-vh');
+        modal.style.removeProperty('--chat-mobile-offset-top');
+        return;
+    }
+
+    const viewport = window.visualViewport;
+    const viewportHeight = viewport ? viewport.height : window.innerHeight;
+    const viewportOffsetTop = viewport ? viewport.offsetTop : 0;
+
+    modal.style.setProperty('--chat-mobile-vh', `${Math.round(viewportHeight)}px`);
+    modal.style.setProperty('--chat-mobile-offset-top', `${Math.max(0, Math.round(viewportOffsetTop))}px`);
+}
+
 function suppressMobileChatConversationOpen(durationMs) {
     if (!shouldUseMobileChatFlow()) return;
     chatSuppressConversationOpenUntil = Date.now() + Math.max(0, durationMs || 0);
@@ -1423,6 +1441,7 @@ async function openChatModal(friendUid, options = {}) {
     renderChatConversationList();
     setChatMobileView(friendUid ? 'thread' : 'list');
     syncChatScrollLock();
+    syncChatMobileViewport();
     if (shouldUseMobileChatFlow()) {
         blurActiveChatElement();
     } else if (searchInput) {
@@ -1466,6 +1485,7 @@ function closeChatModal(options = {}) {
     const searchInput = document.getElementById('chatSearchInput');
     if (searchInput) searchInput.value = '';
     syncChatScrollLock();
+    syncChatMobileViewport();
     renderChatMiniDock();
 
     if (!options.skipHistory && window.history && window.history.state && window.history.state.bitbondView === 'chat') {
@@ -1707,7 +1727,13 @@ window.addEventListener('resize', () => {
         setChatMobileView(chatSelectedFriendUid ? 'thread' : 'list');
     }
     syncChatScrollLock();
+    syncChatMobileViewport();
 });
+
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncChatMobileViewport);
+    window.visualViewport.addEventListener('scroll', syncChatMobileViewport);
+}
 
 ensureChatEmojiPickersRendered();
 bindChatMobileBackButton();

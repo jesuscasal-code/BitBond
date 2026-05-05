@@ -549,7 +549,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    z-index: 3;
+    z-index: 12;
 }
 
 .chat-modal-close:hover {
@@ -1247,6 +1247,8 @@ body.light-mode .chat-emoji-option:hover {
         align-items: stretch;
         justify-content: stretch;
         padding: 0;
+        --chat-mobile-vh: 100dvh;
+        --chat-mobile-offset-top: 0px;
     }
 
     #chatModal.chat-mobile-list-active .chat-main {
@@ -1269,12 +1271,12 @@ body.light-mode .chat-emoji-option:hover {
     }
 
     #chatModal.chat-mobile-thread-active .chat-conversation-view {
-        padding-top: calc(74px + env(safe-area-inset-top));
+        padding-top: calc(82px + env(safe-area-inset-top) + var(--chat-mobile-offset-top));
     }
 
     #chatModal.chat-mobile-thread-active .chat-conversation-header {
         position: fixed;
-        top: 0;
+        top: var(--chat-mobile-offset-top);
         left: 0;
         right: 0;
         width: 100vw;
@@ -1293,15 +1295,19 @@ body.light-mode .chat-emoji-option:hover {
         width: 100vw;
         max-width: none;
         max-height: none;
-        height: 100dvh;
+        height: var(--chat-mobile-vh);
         border-right: 0;
         border-left: 0;
         border-radius: 0;
     }
 
     .chat-shell {
-        height: 100dvh;
+        height: var(--chat-mobile-vh);
         display: block;
+    }
+
+    .chat-modal-close {
+        top: calc(12px + var(--chat-mobile-offset-top));
     }
 
     .chat-sidebar,
