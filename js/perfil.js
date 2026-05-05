@@ -11,6 +11,15 @@ let viewedFollowingSeguidoresUnsubscribe = null;
 let latestViewedFollowingLegacyDocs = [];
 let latestViewedFollowingSeguidoresDocs = [];
 let activeUserListMode = '';
+let shouldResetProfileScroll = false;
+
+function scrollProfileViewToTop() {
+    const profileView = document.getElementById('profileView');
+    if (profileView && typeof profileView.scrollTo === 'function') {
+        profileView.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+}
 
 function stopViewedProfileListener() {
     if (viewedProfileUnsubscribe) {
@@ -872,6 +881,12 @@ async function renderViewedProfileState(uid, u) {
     document.getElementById('mainFeed').style.display = 'none';
     document.getElementById('profileView').style.display = 'flex';
     if (window.setActiveNav) window.setActiveNav('profile');
+    if (shouldResetProfileScroll) {
+        shouldResetProfileScroll = false;
+        requestAnimationFrame(() => {
+            scrollProfileViewToTop();
+        });
+    }
 
     const profileAvatar = document.getElementById('viewedProfileAvatar');
     const resolvedAvatar = window.resolveUserAvatar
@@ -913,6 +928,7 @@ async function verPerfilUsuario(uid, options = {}) {
 
     hideProfileSearchSurfaces();
 
+    shouldResetProfileScroll = options.resetScroll !== false;
     stopViewedProfileListener();
     stopViewedFollowersListener();
     window.viewedProfileUid = uid;

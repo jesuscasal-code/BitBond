@@ -285,15 +285,6 @@
                 </div>
             </div>
 
-            <aside class="sidebar-right">
-                <div class="card">
-                    <h3 style="margin-bottom: 1rem;">Tendencias</h3>
-                    <div class="trending-item">
-                        <p style="font-size: 0.8rem; color: var(--text-muted);">#JavaScript</p>
-                        <p style="font-weight: 500;">BitBond v1.0 lanzada!</p>
-                    </div>
-                </div>
-            </aside>
         </div>
     </div>
 
@@ -405,6 +396,23 @@
                 </div>
                 <div class="settings-section-label settings-section-label-danger">Cuenta</div>
                 <button class="btn settings-logout-btn" onclick="handleSignOut()">Cerrar sesión</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="signOutConfirmModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content card signout-confirm-modal">
+            <div class="signout-confirm-header">
+                <button type="button" class="close-btn" onclick="closeSignOutConfirm()" aria-label="Cerrar confirmación">&times;</button>
+            </div>
+            <div class="signout-confirm-copy">
+                <p class="signout-confirm-kicker">Cuenta</p>
+                <h3>¿Cerrar sesión?</h3>
+                <p>Si sales ahora, tendrás que volver a iniciar sesión para entrar de nuevo en BitBond.</p>
+            </div>
+            <div class="signout-confirm-actions">
+                <button type="button" class="btn signout-confirm-cancel" onclick="closeSignOutConfirm()">Cancelar</button>
+                <button type="button" class="btn signout-confirm-submit" onclick="confirmSignOut()">Cerrar sesión</button>
             </div>
         </div>
     </div>

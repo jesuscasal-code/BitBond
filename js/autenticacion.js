@@ -138,8 +138,31 @@ async function handleAuth(event) {
     }
 }
 
-function handleSignOut() {
+function closeSignOutConfirm(options = {}) {
+    const modal = document.getElementById('signOutConfirmModal');
+    if (modal) modal.style.display = 'none';
+    if (!options.skipHistory && window.history && window.history.state && window.history.state.bitbondView === 'signout_confirm') {
+        window.history.back();
+    }
+}
+
+function replaceAppHistoryWithHome() {
+    if (!window.history || typeof window.history.replaceState !== 'function') return;
+    const homeState = window.getAppHistoryState
+        ? window.getAppHistoryState('home')
+        : { bitbondView: 'home', payload: null };
+    window.history.replaceState(homeState, '', window.location.href);
+}
+
+function confirmSignOut() {
     if (auth) {
+        closeSignOutConfirm({ skipHistory: true });
+        replaceAppHistoryWithHome();
+        try {
+            window.sessionStorage.setItem('bitbond:reset-history-after-login', '1');
+        } catch (error) {
+            // Ignorar fallos de sessionStorage
+        }
         auth.signOut().then(() => {
             window.userData = null;
             window.amigos = [];
@@ -150,7 +173,21 @@ function handleSignOut() {
     }
 }
 
+function handleSignOut(options = {}) {
+    const modal = document.getElementById('signOutConfirmModal');
+    if (!modal) {
+        confirmSignOut();
+        return;
+    }
+    modal.style.display = 'flex';
+    if (!options.skipHistory && window.pushAppHistoryState) {
+        window.pushAppHistoryState('signout_confirm');
+    }
+}
+
 // Exportar funciones globalmente
 window.handleAuth = handleAuth;
 window.changeAuthMode = changeAuthMode;
 window.handleSignOut = handleSignOut;
+window.closeSignOutConfirm = closeSignOutConfirm;
+window.confirmSignOut = confirmSignOut;

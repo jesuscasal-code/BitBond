@@ -226,6 +226,24 @@ function pushAppHistoryState(view, payload) {
     window.history.pushState(nextState, '', window.location.href);
 }
 
+function clearForwardHistoryWithHomeState() {
+    if (!window.history || typeof window.history.replaceState !== 'function') return;
+    if (typeof window.history.pushState === 'function') {
+        window.history.pushState(getAppHistoryState('home'), '', window.location.href);
+    }
+    window.history.replaceState(getAppHistoryState('home'), '', window.location.href);
+}
+
+function consumePendingSignOutHistoryReset() {
+    try {
+        const shouldReset = window.sessionStorage.getItem('bitbond:reset-history-after-login') === '1';
+        if (shouldReset) window.sessionStorage.removeItem('bitbond:reset-history-after-login');
+        return shouldReset;
+    } catch (error) {
+        return false;
+    }
+}
+
 function closeAllSecondarySurfaces() {
     const settingsModal = document.getElementById('settingsModal');
     const requestsModal = document.getElementById('requestsModal');
@@ -234,6 +252,7 @@ function closeAllSecondarySurfaces() {
     const userListModal = document.getElementById('userListModal');
     const profileModal = document.getElementById('profileModal');
     const postModal = document.getElementById('postModal');
+    const signOutConfirmModal = document.getElementById('signOutConfirmModal');
 
     if (window.closeProfileImageViewer) window.closeProfileImageViewer({ skipHistory: true });
     if (window.closeStoryViewer) window.closeStoryViewer({ skipHistory: true });
@@ -254,6 +273,7 @@ function closeAllSecondarySurfaces() {
     if (postModal && postModal.style.display === 'flex') {
         closeModal({ skipHistory: true });
     }
+    if (signOutConfirmModal) signOutConfirmModal.style.display = 'none';
     if (window.closeProfileDropdown) window.closeProfileDropdown();
 }
 
@@ -274,6 +294,11 @@ async function syncUiToHistoryState(state) {
     try {
         if (view === 'settings') {
             openSettings({ skipHistory: true });
+            return;
+        }
+
+        if (view === 'signout_confirm') {
+            if (window.handleSignOut) window.handleSignOut({ skipHistory: true });
             return;
         }
 
@@ -392,7 +417,8 @@ function setActiveNav(section) {
     const normalizedSection = section || 'home';
     document.body.dataset.currentSection = normalizedSection;
     document.querySelectorAll('[data-nav-target]').forEach(el => {
-        const shouldActivate = el.dataset.navTarget === normalizedSection;
+        const isHomeLink = el.dataset.navTarget === 'home';
+        const shouldActivate = !isHomeLink && el.dataset.navTarget === normalizedSection;
         el.classList.toggle('active', shouldActivate);
     });
 }
@@ -437,6 +463,13 @@ function toggleProfileDropdown(event) {
     const trigger = document.querySelector('.profile-dropdown-trigger');
     if (d) {
         const isOpen = d.classList.toggle('show');
+        if (isOpen) {
+            if (window.closeChatMiniInbox) window.closeChatMiniInbox();
+            const chatModal = document.getElementById('chatModal');
+            if (chatModal && chatModal.style.display === 'flex' && window.closeChatModal) {
+                window.closeChatModal({ skipHistory: true });
+            }
+        }
         if (trigger) trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     }
 }
@@ -452,6 +485,8 @@ window.onclick = function (event) {
     if (event.target.classList.contains('modal-overlay')) {
         if (event.target.id === 'settingsModal') {
             closeSettings();
+        } else if (event.target.id === 'signOutConfirmModal' && window.closeSignOutConfirm) {
+            window.closeSignOutConfirm();
         } else if (event.target.id === 'requestsModal' && window.closeRequestsModal) {
             window.closeRequestsModal();
         } else {
@@ -594,39 +629,6 @@ function initializeProductChrome() {
         }
     }
 
-    const rightSidebar = document.querySelector('.sidebar-right');
-    if (rightSidebar) {
-        rightSidebar.innerHTML = `
-            <div class="card right-rail-panel">
-                <div class="section-header compact">
-                    <div>
-                        <p class="section-kicker">Radar</p>
-                        <h3>Tendencias</h3>
-                    </div>
-                </div>
-                <div class="trending-item">
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">#JavaScript</p>
-                    <p style="font-weight: 500;">BitBond v1.0 lanzada!</p>
-                </div>
-                <div class="trending-item">
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">#Backend</p>
-                    <p style="font-weight: 500;">Los perfiles tech mejor valorados hoy</p>
-                </div>
-            </div>
-            <div class="card right-rail-panel">
-                <div class="section-header compact">
-                    <div>
-                        <p class="section-kicker">Descubre</p>
-                        <h3>Personas para seguir</h3>
-                    </div>
-                </div>
-                <div id="suggestedUsersList" class="rail-list">
-                    <p class="rail-empty">Cargando sugerencias...</p>
-                </div>
-            </div>
-        `;
-    }
-
     productChromeInitialized = true;
 }
 
@@ -660,7 +662,7 @@ function renderSuggestedUsers() {
         container.innerHTML = suggestions.map(user => `
         <div class="rail-user-item">
             <img src="${resolveUserAvatar(user, user.uid || user.email)}"
-                class="avatar" style="width:42px; height:42px;" alt="${user.nombre}">
+                class="avatar rail-user-avatar" alt="${user.nombre}">
             <div class="rail-user-meta">
                 <strong>${user.nombre || 'Usuario'}</strong>
                 <span>${user.puesto || 'Miembro de BitBond'}</span>
@@ -771,6 +773,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 if (auth) {
     auth.onAuthStateChanged(user => {
+        const shouldResetForwardHistory = consumePendingSignOutHistoryReset();
+        const currentState = window.history && window.history.state ? window.history.state : null;
+        if (currentState && currentState.bitbondView === 'signout_confirm' && window.history && typeof window.history.replaceState === 'function') {
+            window.history.replaceState(getAppHistoryState('home'), '', window.location.href);
+        }
+        if (shouldResetForwardHistory) {
+            clearForwardHistoryWithHomeState();
+        }
+
         if (user) {
             subscribeLiveUserDirectoryListener();
         } else {
@@ -794,6 +805,7 @@ window.toggleProfileDropdown = toggleProfileDropdown;
 window.handleFileSelect = handleFileSelect;
 window.goToHome = goToHome;
 window.resolveAppSection = resolveAppSection;
+window.getAppHistoryState = getAppHistoryState;
 window.focusDesktopSearch = focusDesktopSearch;
 window.DEFAULT_USER_AVATAR = DEFAULT_USER_AVATAR;
 window.isCustomUserAvatar = isCustomUserAvatar;

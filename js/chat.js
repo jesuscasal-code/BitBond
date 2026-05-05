@@ -926,6 +926,7 @@ function toggleChatMiniInbox(event) {
     if (!currentUser) return;
     stopChatMiniEvent(event);
     closeChatEmojiPickers();
+    if (window.closeProfileDropdown) window.closeProfileDropdown();
 
     chatMiniOpen = !chatMiniOpen;
     if (chatMiniOpen) {
@@ -1399,6 +1400,7 @@ async function openChatModal(friendUid, options = {}) {
     const shouldAutoSelectLatest = shouldUseMobileChatFlow() ? !!friendUid : autoSelectLatest;
     if (!modal) return;
     chatShouldAutoSelectLatest = !!shouldAutoSelectLatest;
+    if (window.closeProfileDropdown) window.closeProfileDropdown();
 
     closeChatMiniInbox();
     closeChatEmojiPickers();

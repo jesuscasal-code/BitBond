@@ -1,11 +1,10 @@
 /* Diseño y Layout */
 .container {
-    max-width: 1280px;
+    max-width: 1120px;
     margin: 0 auto;
-    padding: 0 1.5rem 2rem calc(var(--sidebar-rail) + 2rem);
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
-    gap: 1.75rem;
+    padding: 0 1.5rem 2rem 1.5rem;
+    display: flex;
+    justify-content: center;
     padding-top: var(--topbar-offset);
     align-items: start;
 }
@@ -34,13 +33,12 @@
 .feed,
 #profileView {
     width: 100%;
-    max-width: 780px;
+    max-width: 860px;
 }
 
 /* Media Queries */
 @media (max-width: 1024px) {
     .container {
-        grid-template-columns: 1fr;
         padding-top: 76px;
         padding-bottom: 80px;
         padding-left: 1rem;
@@ -56,7 +54,6 @@
 
 @media (max-width: 800px) {
     .container {
-        grid-template-columns: 1fr;
         padding-left: 0.9rem;
         padding-right: 0.9rem;
     }
