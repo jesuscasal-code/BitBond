@@ -100,12 +100,10 @@ function syncChatMobileViewport() {
     const viewport = window.visualViewport;
     const viewportHeight = viewport ? viewport.height : window.innerHeight;
     const viewportOffsetTop = viewport ? viewport.offsetTop : 0;
-    const layoutHeight = Math.max(window.innerHeight, viewportHeight + viewportOffsetTop);
-    const keyboardInset = Math.max(0, Math.round(layoutHeight - (viewportHeight + viewportOffsetTop)));
 
-    modal.style.setProperty('--chat-mobile-vh', `${Math.round(layoutHeight)}px`);
+    modal.style.setProperty('--chat-mobile-vh', `${Math.round(viewportHeight)}px`);
     modal.style.setProperty('--chat-mobile-offset-top', `${Math.max(0, Math.round(viewportOffsetTop))}px`);
-    modal.style.setProperty('--chat-mobile-keyboard-inset', `${keyboardInset}px`);
+    modal.style.setProperty('--chat-mobile-keyboard-inset', '0px');
 }
 
 function syncChatMobileLayoutMetrics() {
@@ -1329,6 +1327,23 @@ function renderChatMessages(messages) {
     if (miniMessages) miniMessages.scrollTop = miniMessages.scrollHeight;
 }
 
+function clearChatMessagesWhileLoading() {
+    const container = document.getElementById('chatMessages');
+    const miniContainer = document.getElementById('chatMiniMessages');
+
+    chatCurrentMessages = [];
+    if (container) {
+        container.innerHTML = '';
+        container.scrollTop = 0;
+    }
+    if (miniContainer) {
+        miniContainer.innerHTML = '';
+        miniContainer.scrollTop = 0;
+    }
+    hideChatDateIndicator();
+    hideChatMiniDateIndicator();
+}
+
 function updateConversationReadStateLocally(conversationId, lastReadMessageId, lastReadAt) {
     const conversation = getChatConversationById(conversationId);
     if (!conversation || !currentUser) return;
@@ -1414,14 +1429,14 @@ async function subscribeToChatMessages(conversationId) {
         .collection("messages")
         .orderBy("createdAt")
         .onSnapshot(snapshot => {
+            if (conversationId !== chatSelectedConversationId) return;
+
             const messages = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
             renderChatMessages(messages);
-            if (conversationId === chatSelectedConversationId) {
-                markConversationAsRead(conversationId, getLatestChatMessage(messages));
-            }
+            markConversationAsRead(conversationId, getLatestChatMessage(messages));
         }, error => {
             console.error("Error al escuchar mensajes:", error);
         });
@@ -1445,6 +1460,8 @@ async function openChatWithUser(friendUid) {
     chatSelectedFriendUid = friendUid;
     chatSelectedConversationId = getChatConversationId(currentUser.uid, friendUid);
     closeChatEmojiPickers();
+    cleanupChatMessagesListener();
+    clearChatMessagesWhileLoading();
 
     updateChatHeader(friendUid);
     renderChatConversationList();
