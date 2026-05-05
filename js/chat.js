@@ -102,6 +102,52 @@ function syncChatMobileViewport() {
     modal.style.setProperty('--chat-mobile-offset-top', `${Math.max(0, Math.round(viewportOffsetTop))}px`);
 }
 
+function syncChatMobileLayoutMetrics() {
+    const modal = document.getElementById('chatModal');
+    if (!modal) return;
+
+    if (!isChatModalOpen() || !shouldUseMobileChatFlow()) {
+        modal.style.removeProperty('--chat-mobile-header-height');
+        modal.style.removeProperty('--chat-mobile-composer-height');
+        return;
+    }
+
+    const header = document.querySelector('#chatConversationView .chat-conversation-header');
+    const composer = document.querySelector('#chatConversationView .chat-composer');
+
+    if (header) modal.style.setProperty('--chat-mobile-header-height', `${Math.round(header.offsetHeight)}px`);
+    if (composer) modal.style.setProperty('--chat-mobile-composer-height', `${Math.round(composer.offsetHeight)}px`);
+}
+
+function ensureLatestChatMessageVisible() {
+    if (!shouldUseMobileChatFlow()) return;
+
+    const container = document.getElementById('chatMessages');
+    if (!container) return;
+
+    const rows = container.querySelectorAll('.chat-message-row');
+    const lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
+    if (!lastRow || typeof lastRow.scrollIntoView !== 'function') return;
+
+    requestAnimationFrame(() => {
+        lastRow.scrollIntoView({ block: 'end', inline: 'nearest' });
+    });
+}
+
+function bindChatMobileInputVisibility() {
+    const input = document.getElementById('chatMessageInput');
+    if (!input || input.dataset.mobileVisibilityBound === 'true') return;
+
+    input.dataset.mobileVisibilityBound = 'true';
+    input.addEventListener('focus', () => {
+        setTimeout(() => {
+            syncChatMobileViewport();
+            syncChatMobileLayoutMetrics();
+            ensureLatestChatMessageVisible();
+        }, 120);
+    });
+}
+
 function suppressMobileChatConversationOpen(durationMs) {
     if (!shouldUseMobileChatFlow()) return;
     chatSuppressConversationOpenUntil = Date.now() + Math.max(0, durationMs || 0);
@@ -1206,9 +1252,12 @@ function renderChatMessages(messages) {
 
     bindChatMessagesScrollIndicator();
     bindChatMiniMessagesScrollIndicator();
+    bindChatMobileInputVisibility();
     hideChatDateIndicator();
     hideChatMiniDateIndicator();
+    syncChatMobileLayoutMetrics();
     scrollChatToBottom();
+    ensureLatestChatMessageVisible();
     const miniMessages = document.getElementById('chatMiniMessages');
     if (miniMessages) miniMessages.scrollTop = miniMessages.scrollHeight;
 }
@@ -1442,6 +1491,7 @@ async function openChatModal(friendUid, options = {}) {
     setChatMobileView(friendUid ? 'thread' : 'list');
     syncChatScrollLock();
     syncChatMobileViewport();
+    syncChatMobileLayoutMetrics();
     if (shouldUseMobileChatFlow()) {
         blurActiveChatElement();
     } else if (searchInput) {
@@ -1486,6 +1536,7 @@ function closeChatModal(options = {}) {
     if (searchInput) searchInput.value = '';
     syncChatScrollLock();
     syncChatMobileViewport();
+    syncChatMobileLayoutMetrics();
     renderChatMiniDock();
 
     if (!options.skipHistory && window.history && window.history.state && window.history.state.bitbondView === 'chat') {
@@ -1728,11 +1779,14 @@ window.addEventListener('resize', () => {
     }
     syncChatScrollLock();
     syncChatMobileViewport();
+    syncChatMobileLayoutMetrics();
 });
 
 if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', syncChatMobileViewport);
     window.visualViewport.addEventListener('scroll', syncChatMobileViewport);
+    window.visualViewport.addEventListener('resize', syncChatMobileLayoutMetrics);
+    window.visualViewport.addEventListener('scroll', syncChatMobileLayoutMetrics);
 }
 
 ensureChatEmojiPickersRendered();

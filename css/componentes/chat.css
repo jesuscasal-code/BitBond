@@ -1249,6 +1249,8 @@ body.light-mode .chat-emoji-option:hover {
         padding: 0;
         --chat-mobile-vh: 100dvh;
         --chat-mobile-offset-top: 0px;
+        --chat-mobile-header-height: 82px;
+        --chat-mobile-composer-height: 92px;
     }
 
     #chatModal.chat-mobile-list-active .chat-main {
@@ -1271,7 +1273,7 @@ body.light-mode .chat-emoji-option:hover {
     }
 
     #chatModal.chat-mobile-thread-active .chat-conversation-view {
-        padding-top: calc(82px + env(safe-area-inset-top) + var(--chat-mobile-offset-top));
+        padding-top: calc(var(--chat-mobile-header-height) + var(--chat-mobile-offset-top));
     }
 
     #chatModal.chat-mobile-thread-active .chat-conversation-header {
@@ -1428,8 +1430,9 @@ body.light-mode .chat-emoji-option:hover {
         flex: 1 1 auto;
         min-height: 0;
         padding-top: 1rem;
-        padding-bottom: 1rem;
+        padding-bottom: calc(var(--chat-mobile-composer-height) + 1rem + env(safe-area-inset-bottom));
         gap: 0.7rem;
+        scroll-padding-bottom: calc(var(--chat-mobile-composer-height) + 1rem + env(safe-area-inset-bottom));
     }
 
     .chat-bubble {
