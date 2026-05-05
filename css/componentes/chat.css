@@ -1268,6 +1268,22 @@ body.light-mode .chat-emoji-option:hover {
         height: 100%;
     }
 
+    #chatModal.chat-mobile-thread-active .chat-conversation-view {
+        padding-top: calc(74px + env(safe-area-inset-top));
+    }
+
+    #chatModal.chat-mobile-thread-active .chat-conversation-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100vw;
+        padding-top: calc(0.9rem + env(safe-area-inset-top));
+        padding-right: 4rem;
+        padding-left: calc(0.95rem + env(safe-area-inset-left));
+        z-index: 8;
+    }
+
     .nav-action-btn {
         padding: 0.45rem 0.7rem;
         font-size: 0.76rem;
