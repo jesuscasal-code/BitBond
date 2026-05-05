@@ -169,6 +169,14 @@ function bindChatMobileComposerFocus() {
     });
 }
 
+function clearChatInputValue(input) {
+    if (!input) return;
+
+    input.value = '';
+    input.defaultValue = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 function bindChatMobileMessagesOverscrollGuard() {
     const container = document.getElementById('chatMessages');
     if (!container || container.dataset.mobileOverscrollBound === 'true') return;
@@ -1630,13 +1638,17 @@ function closeChatModal(options = {}) {
     }
 }
 
-async function persistChatMessage(friendUid, text) {
+async function persistChatMessage(friendUid, text, options = {}) {
     const conversationId = getChatConversationId(currentUser.uid, friendUid);
     const conversationRef = db.collection("conversations").doc(conversationId);
     const messageRef = conversationRef.collection("messages").doc();
     const previewText = text.length > 110 ? text.slice(0, 107) + "..." : text;
     const participants = [currentUser.uid, friendUid].sort();
     const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp();
+
+    if (options.optimistic) {
+        registerLocalSentMessage(friendUid, text, messageRef.id);
+    }
 
     const conversationSnapshot = await conversationRef.get().catch(() => null);
     const conversationPayload = {
@@ -1680,7 +1692,9 @@ async function persistChatMessage(friendUid, text) {
 
     await conversationRef.set(conversationPayload, { merge: true });
 
-    registerLocalSentMessage(friendUid, text, messageRef.id);
+    if (!options.optimistic) {
+        registerLocalSentMessage(friendUid, text, messageRef.id);
+    }
 }
 
 async function sendChatMiniMessage(event) {
@@ -1723,23 +1737,32 @@ async function sendChatMessage(event) {
     const input = document.getElementById('chatMessageInput');
     const text = input ? input.value.trim() : "";
     if (!text) return;
+    const useMobileFlow = shouldUseMobileChatFlow();
 
-    if (input) input.value = '';
+    if (useMobileFlow) {
+        clearChatInputValue(input);
+    }
     closeChatEmojiPickers();
-    if (input && shouldUseMobileChatFlow()) {
+    if (input && useMobileFlow) {
         input.focus({ preventScroll: true });
         settleLatestChatMessageVisible(20);
     }
 
     try {
-        await persistChatMessage(chatSelectedFriendUid, text);
-        if (input && shouldUseMobileChatFlow()) {
+        await persistChatMessage(chatSelectedFriendUid, text, { optimistic: useMobileFlow });
+        if (!useMobileFlow) {
+            clearChatInputValue(input);
+        }
+        if (input && useMobileFlow) {
             input.focus({ preventScroll: true });
             settleLatestChatMessageVisible(60);
         }
         scrollChatToBottom();
     } catch (error) {
-        if (input && !input.value) input.value = text;
+        if (input && !input.value) {
+            input.value = text;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
         console.error("Error al enviar mensaje:", error);
         alert("No se pudo enviar el mensaje. Revisa las reglas de Firestore y vuelve a intentarlo.");
     }
