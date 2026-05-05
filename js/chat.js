@@ -23,6 +23,7 @@ var chatDateIndicatorFrame = null;
 var chatMiniDateIndicatorHideTimeout = null;
 var chatMiniDateIndicatorFrame = null;
 var chatMessagesTouchStartY = 0;
+var chatMobileViewportFrame = null;
 
 var CHAT_EMOJI_OPTIONS = [
     "\uD83D\uDE00",
@@ -92,6 +93,7 @@ function syncChatMobileViewport() {
     if (!isChatModalOpen() || !shouldUseMobileChatFlow()) {
         modal.style.removeProperty('--chat-mobile-vh');
         modal.style.removeProperty('--chat-mobile-offset-top');
+        modal.style.removeProperty('--chat-mobile-keyboard-inset');
         return;
     }
 
@@ -99,9 +101,11 @@ function syncChatMobileViewport() {
     const viewportHeight = viewport ? viewport.height : window.innerHeight;
     const viewportOffsetTop = viewport ? viewport.offsetTop : 0;
     const layoutHeight = Math.max(window.innerHeight, viewportHeight + viewportOffsetTop);
+    const keyboardInset = Math.max(0, Math.round(layoutHeight - (viewportHeight + viewportOffsetTop)));
 
     modal.style.setProperty('--chat-mobile-vh', `${Math.round(layoutHeight)}px`);
     modal.style.setProperty('--chat-mobile-offset-top', `${Math.max(0, Math.round(viewportOffsetTop))}px`);
+    modal.style.setProperty('--chat-mobile-keyboard-inset', `${keyboardInset}px`);
 }
 
 function syncChatMobileLayoutMetrics() {
@@ -198,9 +202,15 @@ function bindChatMobileMessagesOverscrollGuard() {
 }
 
 function syncChatMobileKeyboardLayout() {
-    syncChatMobileViewport();
-    syncChatMobileLayoutMetrics();
-    ensureLatestChatMessageVisible();
+    if (chatMobileViewportFrame) {
+        cancelAnimationFrame(chatMobileViewportFrame);
+    }
+
+    chatMobileViewportFrame = requestAnimationFrame(() => {
+        chatMobileViewportFrame = null;
+        syncChatMobileViewport();
+        syncChatMobileLayoutMetrics();
+    });
 }
 
 function suppressMobileChatConversationOpen(durationMs) {
@@ -1696,15 +1706,16 @@ async function sendChatMessage(event) {
     if (!text) return;
 
     try {
-        if (input && shouldUseMobileChatFlow()) {
-            input.focus({ preventScroll: true });
-        }
         await persistChatMessage(chatSelectedFriendUid, text);
         if (input) input.value = '';
         closeChatEmojiPickers();
         if (input && shouldUseMobileChatFlow()) {
             input.focus({ preventScroll: true });
-            syncChatMobileKeyboardLayout();
+            setTimeout(() => {
+                syncChatMobileViewport();
+                syncChatMobileLayoutMetrics();
+                ensureLatestChatMessageVisible();
+            }, 80);
         }
         scrollChatToBottom();
     } catch (error) {
@@ -1848,7 +1859,6 @@ window.addEventListener('resize', () => {
 
 if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', syncChatMobileKeyboardLayout);
-    window.visualViewport.addEventListener('scroll', syncChatMobileKeyboardLayout);
 }
 
 ensureChatEmojiPickersRendered();

@@ -1249,6 +1249,7 @@ body.light-mode .chat-emoji-option:hover {
         padding: 0;
         --chat-mobile-vh: 100dvh;
         --chat-mobile-offset-top: 0px;
+        --chat-mobile-keyboard-inset: 0px;
         --chat-mobile-header-height: 82px;
         --chat-mobile-composer-height: 92px;
     }
@@ -1299,7 +1300,7 @@ body.light-mode .chat-emoji-option:hover {
         position: absolute;
         top: calc(var(--chat-mobile-header-height) + var(--chat-mobile-offset-top));
         right: 0;
-        bottom: var(--chat-mobile-composer-height);
+        bottom: calc(var(--chat-mobile-composer-height) + var(--chat-mobile-keyboard-inset));
         left: 0;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
@@ -1309,7 +1310,7 @@ body.light-mode .chat-emoji-option:hover {
     #chatModal.chat-mobile-thread-active .chat-composer {
         position: absolute;
         right: 0;
-        bottom: 0;
+        bottom: var(--chat-mobile-keyboard-inset);
         left: 0;
         z-index: 7;
         overscroll-behavior: none;
