@@ -22,6 +22,7 @@ var chatDateIndicatorHideTimeout = null;
 var chatDateIndicatorFrame = null;
 var chatMiniDateIndicatorHideTimeout = null;
 var chatMiniDateIndicatorFrame = null;
+var chatMessagesTouchStartY = 0;
 
 var CHAT_EMOJI_OPTIONS = [
     "\uD83D\uDE00",
@@ -163,6 +164,37 @@ function bindChatMobileComposerFocus() {
         input.focus({ preventScroll: true });
         sendChatMessage(event);
     });
+}
+
+function bindChatMobileMessagesOverscrollGuard() {
+    const container = document.getElementById('chatMessages');
+    if (!container || container.dataset.mobileOverscrollBound === 'true') return;
+
+    container.dataset.mobileOverscrollBound = 'true';
+
+    container.addEventListener('touchstart', event => {
+        if (!shouldUseMobileChatFlow()) return;
+        const touch = event.touches && event.touches[0];
+        chatMessagesTouchStartY = touch ? touch.clientY : 0;
+    }, { passive: true });
+
+    container.addEventListener('touchmove', event => {
+        if (!shouldUseMobileChatFlow()) return;
+        const touch = event.touches && event.touches[0];
+        if (!touch) return;
+
+        const currentY = touch.clientY;
+        const deltaY = currentY - chatMessagesTouchStartY;
+        const scrollTop = container.scrollTop;
+        const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+        const isAtTop = scrollTop <= 0;
+        const isAtBottom = scrollTop >= maxScrollTop - 1;
+        const hasScrollableContent = container.scrollHeight > container.clientHeight + 1;
+
+        if (!hasScrollableContent || (isAtTop && deltaY > 0) || (isAtBottom && deltaY < 0)) {
+            event.preventDefault();
+        }
+    }, { passive: false });
 }
 
 function syncChatMobileKeyboardLayout() {
@@ -1277,6 +1309,7 @@ function renderChatMessages(messages) {
     bindChatMiniMessagesScrollIndicator();
     bindChatMobileInputVisibility();
     bindChatMobileComposerFocus();
+    bindChatMobileMessagesOverscrollGuard();
     hideChatDateIndicator();
     hideChatMiniDateIndicator();
     syncChatMobileLayoutMetrics();
