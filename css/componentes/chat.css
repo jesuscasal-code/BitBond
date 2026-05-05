@@ -1278,6 +1278,7 @@ body.light-mode .chat-emoji-option:hover {
         height: var(--chat-mobile-vh);
         min-height: 0;
         overflow: hidden;
+        overscroll-behavior: none;
         padding-top: 0;
         position: relative;
     }
@@ -1302,6 +1303,7 @@ body.light-mode .chat-emoji-option:hover {
         left: 0;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
     }
 
     #chatModal.chat-mobile-thread-active .chat-composer {
@@ -1310,6 +1312,7 @@ body.light-mode .chat-emoji-option:hover {
         bottom: 0;
         left: 0;
         z-index: 7;
+        overscroll-behavior: none;
     }
 
     .nav-action-btn {

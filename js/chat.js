@@ -97,8 +97,9 @@ function syncChatMobileViewport() {
     const viewport = window.visualViewport;
     const viewportHeight = viewport ? viewport.height : window.innerHeight;
     const viewportOffsetTop = viewport ? viewport.offsetTop : 0;
+    const layoutHeight = Math.max(window.innerHeight, viewportHeight + viewportOffsetTop);
 
-    modal.style.setProperty('--chat-mobile-vh', `${Math.round(viewportHeight)}px`);
+    modal.style.setProperty('--chat-mobile-vh', `${Math.round(layoutHeight)}px`);
     modal.style.setProperty('--chat-mobile-offset-top', `${Math.max(0, Math.round(viewportOffsetTop))}px`);
 }
 
@@ -145,6 +146,22 @@ function bindChatMobileInputVisibility() {
             syncChatMobileLayoutMetrics();
             ensureLatestChatMessageVisible();
         }, 120);
+    });
+}
+
+function bindChatMobileComposerFocus() {
+    const composer = document.querySelector('#chatConversationView .chat-composer');
+    const input = document.getElementById('chatMessageInput');
+    if (!composer || !input || composer.dataset.mobileFocusBound === 'true') return;
+
+    composer.dataset.mobileFocusBound = 'true';
+    composer.addEventListener('pointerdown', event => {
+        if (!shouldUseMobileChatFlow()) return;
+        if (!(event.target && event.target.closest && event.target.closest('button[type="submit"]'))) return;
+
+        event.preventDefault();
+        input.focus({ preventScroll: true });
+        sendChatMessage(event);
     });
 }
 
@@ -1259,6 +1276,7 @@ function renderChatMessages(messages) {
     bindChatMessagesScrollIndicator();
     bindChatMiniMessagesScrollIndicator();
     bindChatMobileInputVisibility();
+    bindChatMobileComposerFocus();
     hideChatDateIndicator();
     hideChatMiniDateIndicator();
     syncChatMobileLayoutMetrics();
@@ -1645,9 +1663,16 @@ async function sendChatMessage(event) {
     if (!text) return;
 
     try {
+        if (input && shouldUseMobileChatFlow()) {
+            input.focus({ preventScroll: true });
+        }
         await persistChatMessage(chatSelectedFriendUid, text);
         if (input) input.value = '';
         closeChatEmojiPickers();
+        if (input && shouldUseMobileChatFlow()) {
+            input.focus({ preventScroll: true });
+            syncChatMobileKeyboardLayout();
+        }
         scrollChatToBottom();
     } catch (error) {
         console.error("Error al enviar mensaje:", error);
